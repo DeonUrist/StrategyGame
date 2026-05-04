@@ -14,6 +14,9 @@ public sealed class GameDatabase
 
     public static GameDatabase LoadFromDirectory(string directory)
     {
+        // All game content is loaded from JSON catalogs.
+        // The core rules should ask this database for values instead of hardcoding
+        // terrain, unit, faction, or building numbers in C#.
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         return new GameDatabase
         {

@@ -4,6 +4,9 @@ public static class MapGenerator
 {
     public static GameState CreateSandbox(GameDatabase database, int seed)
     {
+        // The sandbox generator is deliberately simple and deterministic.
+        // Same database + same seed means the same map, factions, cities, armies,
+        // and agents every time. That makes bugs easier to reproduce.
         var random = new Random(seed);
         var state = new GameState { Database = database, Map = new HexMap() };
 
@@ -22,6 +25,8 @@ public static class MapGenerator
         {
             for (var r = 0; r < 16; r++)
             {
+                // This creates rough water bands without a full noise library.
+                // Land tiles then get random terrain, and sometimes a feature or resource.
                 var waterScore = Math.Sin((q + seed) * 0.52) + Math.Cos((r - seed) * 0.43) + random.NextDouble() * 0.7;
                 var terrain = waterScore < -0.85 ? "water" : PickLandTerrain(random);
                 var tile = new HexTile { Coord = new HexCoord(q, r), TerrainId = terrain };
@@ -46,6 +51,8 @@ public static class MapGenerator
         var starts = new[] { new HexCoord(3, 3), new HexCoord(15, 4), new HexCoord(10, 12) };
         for (var i = 0; i < state.Factions.Count; i++)
         {
+            // Each faction starts with one city, one army stack, and one agent.
+            // If the preferred start is water, FindNearestPassable moves it to land.
             var faction = state.Factions[i];
             var start = FindNearestPassable(state, starts[i % starts.Length]);
             AddCity(state, i + 1, $"{faction.Name} Hold", faction.Id, start);
@@ -85,6 +92,7 @@ public static class MapGenerator
         }
 
         state.Stacks[id] = stack;
+        // Tiles keep ID lists so drawing and click lookup can quickly find units.
         state.Map.Get(coord).StackIds.Add(id);
     }
 

@@ -10,6 +10,8 @@ Run("movement rejects water and spends movement", MovementRejectsWaterAndSpendsM
 Run("agent joins and detaches from army", AgentJoinsAndDetachesFromArmy);
 Run("combat removes losing stack", CombatRemovesLosingStack);
 Run("director produces valid AI state", DirectorProducesValidAiState);
+Run("save load preserves game state", SaveLoadPreservesGameState);
+Run("loaded AI turn replays deterministically", LoadedAiTurnReplaysDeterministically);
 
 Console.WriteLine("All strategy foundation tests passed.");
 
@@ -107,6 +109,38 @@ void DirectorProducesValidAiState()
     }
 
     Assert(state.Log.Any(entry => entry.Text.Contains("director chose", StringComparison.OrdinalIgnoreCase)), "director should log weighted action");
+}
+
+void SaveLoadPreservesGameState()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var agent = state.AgentsForFaction(state.PlayerFaction.Id).First();
+    GameRules.TryJoinAgentToStack(state, agent.Id, stack.Id);
+    GameRules.AdvanceTurn(state);
+
+    var json = GameStateSerializer.ToJson(state);
+    var loaded = GameStateSerializer.FromJson(database, json);
+
+    Assert(GameStateSerializer.ToJson(loaded) == json, "save/load round trip should preserve serialized state");
+    Assert(loaded.Map.Get(stack.Coord).StackIds.Contains(stack.Id), "loaded map should retain stack tile index");
+    Assert(loaded.Stacks[stack.Id].LeaderAgentId == agent.Id, "loaded stack should retain joined leader");
+    Assert(loaded.Agents[agent.Id].JoinedStackId == stack.Id, "loaded agent should retain joined stack");
+}
+
+void LoadedAiTurnReplaysDeterministically()
+{
+    var original = MapGenerator.CreateSandbox(database, 42);
+    GameRules.AdvanceTurn(original);
+
+    var loaded = GameStateSerializer.FromJson(database, GameStateSerializer.ToJson(original));
+    var originalDirector = new FactionDirector();
+    var loadedDirector = new FactionDirector();
+
+    originalDirector.TakeTurn(original, original.CurrentFaction.Id);
+    loadedDirector.TakeTurn(loaded, loaded.CurrentFaction.Id);
+
+    Assert(GameStateSerializer.ToJson(loaded) == GameStateSerializer.ToJson(original), "loaded AI turn should replay to the same state");
 }
 
 void Run(string name, Action test)

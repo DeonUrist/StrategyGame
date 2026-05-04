@@ -16,7 +16,9 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 - Turn manager behavior through `GameRules.AdvanceTurn`.
 - Player controls one faction with an army and agent.
 - AI factions use `FactionDirector` to choose weighted actions from world state and `data/events.json`.
+- AI faction turns use deterministic per-turn seeds so loaded states can replay the same director result.
 - Strategic auto-resolve combat.
+- Versioned JSON save/load snapshots for `GameState`.
 - Immediate-mode prototype visuals and simple UI in `MainGame`.
 - Console smoke tests for core systems.
 
@@ -37,9 +39,8 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 
 ## Recommended Next Milestones
 
-1. Add save/load for `GameState` and deterministic replay of turns.
-2. Split presentation into map view, selection controller, and UI panel classes.
-3. Add explicit action objects/results so player and AI use the same command pipeline.
-4. Add city production and building upgrade actions with costs.
-5. Add fog of war and faction knowledge state.
-6. Replace placeholder drawing with a tileset or sprite layer after rules stabilize.
+1. Split presentation into map view, selection controller, and UI panel classes.
+2. Add explicit action objects/results so player and AI use the same command pipeline.
+3. Add city production and building upgrade actions with costs.
+4. Add fog of war and faction knowledge state.
+5. Replace placeholder drawing with a tileset or sprite layer after rules stabilize.

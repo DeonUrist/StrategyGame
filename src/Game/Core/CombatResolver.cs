@@ -9,6 +9,9 @@ public static class CombatResolver
             return;
         }
 
+        // Combat is currently a one-step strategic autoresolve:
+        // compare total army strength, add defender terrain/city bonuses, remove
+        // the losing stack, and apply light casualties to the winner.
         var attack = StackStrength(state, attacker);
         var defense = StackStrength(state, defender) + DefenseBonus(state, defender.Coord);
         var attackerWins = attack >= defense;
@@ -22,6 +25,8 @@ public static class CombatResolver
 
     public static int StackStrength(GameState state, StackState stack)
     {
+        // Unit strength comes from data/units.json.
+        // A joined leader can add a flat leadership bonus.
         var strength = stack.Units.Sum(u => state.Database.Units[u.TypeId].Strength * u.Count);
         if (stack.LeaderAgentId is { } leaderId && state.Agents.TryGetValue(leaderId, out var leader))
         {

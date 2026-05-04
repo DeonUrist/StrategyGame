@@ -20,6 +20,8 @@ Press `F5` in the editor. The main scene is `res://scenes/Main.tscn`.
 - Mouse wheel zooms the camera.
 - Middle or right mouse drag pans.
 - `End Turn` advances through AI factions back to the player.
+- `Save Game` writes the current state to Godot's `user://strategy-save.json`.
+- `Load Game` restores that saved state.
 - `Detach Leader` removes a joined agent from the selected army.
 
 ## Verify
@@ -35,4 +37,5 @@ godot --headless --path V:\Repos\StrategyGame --quit
 - The map grid and tokens are drawn in code in `src/Game/Presentation/MainGame.cs`.
 - Game content is authored in JSON under `data/`.
 - Pure simulation code lives under `src/Game/Core/`.
+- Save/load snapshots are handled in core and can be replayed deterministically for AI turns.
 - The initial test harness lives under `tests/StrategyGame.Tests/`.
