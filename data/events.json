@@ -1,0 +1,7 @@
+[
+  { "id": "defend_city", "name": "Defend City", "baseWeight": 30 },
+  { "id": "claim_resource", "name": "Claim Resource", "baseWeight": 20 },
+  { "id": "attack_enemy", "name": "Attack Enemy", "baseWeight": 25 },
+  { "id": "scout", "name": "Scout", "baseWeight": 15 },
+  { "id": "upgrade_city", "name": "Upgrade City", "baseWeight": 10 }
+]

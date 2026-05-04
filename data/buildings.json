@@ -1,0 +1,6 @@
+[
+  { "id": "shelter", "name": "Shelter", "level": 1, "upgradesTo": "camp" },
+  { "id": "camp", "name": "Camp", "level": 2, "upgradesTo": "townsquare" },
+  { "id": "townsquare", "name": "Townsquare", "level": 3, "upgradesTo": "towncenter" },
+  { "id": "towncenter", "name": "Town Center", "level": 4, "upgradesTo": null }
+]

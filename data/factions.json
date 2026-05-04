@@ -1,0 +1,5 @@
+[
+  { "id": "player", "name": "Blue Banner", "color": "#3f7ef5", "isPlayer": true },
+  { "id": "ember", "name": "Ember Court", "color": "#d45a3a", "isPlayer": false },
+  { "id": "jade", "name": "Jade League", "color": "#2aa876", "isPlayer": false }
+]

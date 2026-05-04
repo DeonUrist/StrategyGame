@@ -1,0 +1,5 @@
+[
+  { "id": "forest", "name": "Forest", "movementCostModifier": 1, "defenseModifier": 1 },
+  { "id": "hills", "name": "Hills", "movementCostModifier": 1, "defenseModifier": 2 },
+  { "id": "mountains", "name": "Mountains", "movementCostModifier": 3, "defenseModifier": 4 }
+]
