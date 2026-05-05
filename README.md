@@ -1,6 +1,6 @@
 # StrategyGame
 
-Godot 4.6 Mono prototype for a 2D turn-based strategy game with a generated hex map, factions, armies, agents, cities, resources, and a basic AI turn loop.
+Godot 4.6.1 Mono prototype for a 2D turn-based strategy game with a generated 32x32 hex island map, climate-driven terrain, resources, factions, army stacks, agents, cities, save/load, and a deterministic AI turn loop.
 
 ## Run
 
@@ -13,15 +13,17 @@ godot --path .
 
 Press `F5` in the editor. The main scene is `res://scenes/Main.tscn`.
 
+The game starts at a simple main menu. Use `New Game` to generate a fresh sandbox world, or `Load Game` to restore `user://strategy-save.json` when a save exists.
+
 ## Controls
 
 - Left click a player army or agent to select it.
-- Left click a highlighted hex to move.
+- Left click a highlighted hex to move the selected army or agent.
 - Mouse wheel zooms the camera.
 - Middle or right mouse drag pans.
-- `End Turn` advances through AI factions back to the player.
-- `Save Game` writes the current state to Godot's `user://strategy-save.json`.
-- `Load Game` restores that saved state.
+- `End Turn` advances through every AI faction and returns control to the player.
+- `Save` writes the current state to Godot's `user://strategy-save.json`.
+- `Save and Exit` saves, clears the active game, and returns to the main menu.
 - `Detach Leader` removes a joined agent from the selected army.
 
 ## Verify
@@ -34,8 +36,10 @@ godot --headless --path V:\Repos\StrategyGame --quit
 
 ## Current Prototype
 
-- The map grid and tokens are drawn in code in `src/Game/Presentation/MainGame.cs`.
-- Game content is authored in JSON under `data/`.
-- Pure simulation code lives under `src/Game/Core/`.
-- Save/load snapshots are handled in core and can be replayed deterministically for AI turns.
-- The initial test harness lives under `tests/StrategyGame.Tests/`.
+- Pure simulation code lives under `src/Game/Core/` and has no Godot API dependency.
+- Godot presentation code lives under `src/Game/Presentation/` and is split into startup, input, HUD/menu, drawing, and hex math partials.
+- JSON catalogs in `data/` currently define units, buildings, factions, and weighted AI events.
+- Terrain and resources are code-defined: terrain is resolved from generated climate, rainfall, elevation, vegetation, coastline, and feature data; resources are placed by map-generation rules.
+- The sandbox generator creates an island with ocean borders, small inland lakes, mountain chains with peaks and volcanoes, rainfall/vegetation clusters, starting cities, armies, and agents.
+- Save/load snapshots are handled in core and preserve deterministic AI replay.
+- The console test harness lives under `tests/StrategyGame.Tests/`.

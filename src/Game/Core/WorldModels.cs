@@ -3,8 +3,11 @@ namespace StrategyGame.Core;
 public sealed class HexTile
 {
     public required HexCoord Coord { get; init; }
-    public required string TerrainId { get; set; }
-    public string? FeatureId { get; set; }
+    public Climate Climate { get; set; }
+    public Rainfall Rainfall { get; set; }
+    public Elevation Elevation { get; set; }
+    public Vegetation Vegetation { get; set; }
+    public List<string> FeatureIds { get; } = [];
     public string? ResourceId { get; set; }
     public int? CityId { get; set; }
     public List<int> StackIds { get; } = [];
@@ -22,6 +25,7 @@ public sealed class HexMap
     public bool TryGet(HexCoord coord, out HexTile tile) => _tiles.TryGetValue(coord, out tile!);
     public HexTile Get(HexCoord coord) => _tiles[coord];
     public IEnumerable<HexTile> Neighbors(HexCoord coord) => coord.Neighbors().Where(_tiles.ContainsKey).Select(Get);
+    public bool IsCoastline(HexTile tile) => tile.Elevation == Elevation.Water && Neighbors(tile.Coord).Any(neighbor => neighbor.Elevation != Elevation.Water);
 }
 
 public sealed class FactionState

@@ -4,8 +4,16 @@ namespace StrategyGame.Core;
 
 public sealed class GameDatabase
 {
-    public required IReadOnlyDictionary<string, TerrainDefinition> Terrains { get; init; }
-    public required IReadOnlyDictionary<string, FeatureDefinition> Features { get; init; }
+    private static readonly IReadOnlyDictionary<string, ResourceDefinition> CodeResources =
+        new[]
+        {
+            new ResourceDefinition("copper", "Copper"),
+            new ResourceDefinition("iron", "Iron"),
+            new ResourceDefinition("gold", "Gold"),
+            new ResourceDefinition("silver", "Silver"),
+            new ResourceDefinition("game", "Game")
+        }.ToDictionary(r => r.Id, StringComparer.OrdinalIgnoreCase);
+
     public required IReadOnlyDictionary<string, ResourceDefinition> Resources { get; init; }
     public required IReadOnlyDictionary<string, UnitDefinition> Units { get; init; }
     public required IReadOnlyDictionary<string, BuildingDefinition> Buildings { get; init; }
@@ -15,14 +23,12 @@ public sealed class GameDatabase
     public static GameDatabase LoadFromDirectory(string directory)
     {
         // All game content is loaded from JSON catalogs.
-        // The core rules should ask this database for values instead of hardcoding
-        // terrain, unit, faction, or building numbers in C#.
+        // Terrain and resources are intentionally code-defined because terrain is
+        // built from generated properties and resources currently have map rules.
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         return new GameDatabase
         {
-            Terrains = Load<TerrainDefinition>(directory, "terrain.json", options),
-            Features = Load<FeatureDefinition>(directory, "features.json", options),
-            Resources = Load<ResourceDefinition>(directory, "resources.json", options),
+            Resources = CodeResources,
             Units = Load<UnitDefinition>(directory, "units.json", options),
             Buildings = Load<BuildingDefinition>(directory, "buildings.json", options),
             Factions = Load<FactionDefinition>(directory, "factions.json", options),

@@ -4,7 +4,7 @@ namespace StrategyGame.Core;
 
 public static class GameStateSerializer
 {
-    private const int CurrentVersion = 1;
+    private const int CurrentVersion = 2;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -53,12 +53,15 @@ public static class GameStateSerializer
             var loadedTile = new HexTile
             {
                 Coord = new HexCoord(tile.Q, tile.R),
-                TerrainId = tile.TerrainId,
-                FeatureId = tile.FeatureId,
+                Climate = tile.Climate,
+                Rainfall = tile.Rainfall,
+                Elevation = tile.Elevation,
+                Vegetation = tile.Vegetation,
                 ResourceId = tile.ResourceId,
                 CityId = tile.CityId
             };
 
+            loadedTile.FeatureIds.AddRange(tile.FeatureIds);
             loadedTile.StackIds.AddRange(tile.StackIds);
             loadedTile.AgentIds.AddRange(tile.AgentIds);
             map.Add(loadedTile);
@@ -154,8 +157,11 @@ public static class GameStateSerializer
                 .Select(t => new TileSnapshot(
                     t.Coord.Q,
                     t.Coord.R,
-                    t.TerrainId,
-                    t.FeatureId,
+                    t.Climate,
+                    t.Rainfall,
+                    t.Elevation,
+                    t.Vegetation,
+                    t.FeatureIds.ToList(),
                     t.ResourceId,
                     t.CityId,
                     t.StackIds.ToList(),
@@ -214,7 +220,7 @@ public static class GameStateSerializer
     }
 
     private sealed record FactionSnapshot(string Id, string Name, string Color, bool IsPlayer);
-    private sealed record TileSnapshot(int Q, int R, string TerrainId, string? FeatureId, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
+    private sealed record TileSnapshot(int Q, int R, Climate Climate, Rainfall Rainfall, Elevation Elevation, Vegetation Vegetation, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
     private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, int MovementLeft, int? LeaderAgentId, List<UnitSnapshot> Units);
     private sealed record UnitSnapshot(string TypeId, int Count);
     private sealed record AgentSnapshot(int Id, string FactionId, string TypeId, string Name, int Q, int R, int MovementLeft, int? JoinedStackId);

@@ -39,9 +39,9 @@ public static class CombatResolver
     private static int DefenseBonus(GameState state, HexCoord coord)
     {
         var tile = state.Map.Get(coord);
-        var feature = tile.FeatureId is null ? 0 : state.Database.Features[tile.FeatureId].DefenseModifier;
+        var terrain = TerrainResolver.Resolve(state, tile);
         var city = tile.CityId is null ? 0 : 3;
-        return feature + city;
+        return terrain.DefenseModifier + city;
     }
 
     private static void ApplyCasualties(GameState state, StackState stack, double fraction)

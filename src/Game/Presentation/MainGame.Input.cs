@@ -31,7 +31,7 @@ public partial class MainGame
 
     private void HandleHexClick(HexCoord coord)
     {
-        if (!_state.Map.TryGet(coord, out var tile) || !_state.CurrentFaction.IsPlayer)
+        if (_state is not { } state || !state.Map.TryGet(coord, out var tile) || !state.CurrentFaction.IsPlayer)
         {
             return;
         }
@@ -40,7 +40,7 @@ public partial class MainGame
         // spends movement and moves the selected piece.
         if (_selectedStackId is { } stackId && _selectedRange.ContainsKey(coord))
         {
-            GameRules.TryMoveStack(_state, stackId, coord);
+            GameRules.TryMoveStack(state, stackId, coord);
             ClearSelection();
             QueueRedraw();
             UpdatePanel(tile);
@@ -49,30 +49,30 @@ public partial class MainGame
 
         if (_selectedAgentId is { } agentId && _selectedRange.ContainsKey(coord))
         {
-            GameRules.TryMoveAgent(_state, agentId, coord);
+            GameRules.TryMoveAgent(state, agentId, coord);
             ClearSelection();
             QueueRedraw();
             UpdatePanel(tile);
             return;
         }
 
-        var playerStack = tile.StackIds.Select(id => _state.Stacks[id]).FirstOrDefault(s => s.FactionId == _state.PlayerFaction.Id);
+        var playerStack = tile.StackIds.Select(id => state.Stacks[id]).FirstOrDefault(s => s.FactionId == state.PlayerFaction.Id);
         if (playerStack is not null)
         {
             _selectedStackId = playerStack.Id;
             _selectedAgentId = null;
-            _selectedRange = GameRules.MovementRange(_state, playerStack.Coord, playerStack.MovementLeft);
+            _selectedRange = GameRules.MovementRange(state, playerStack.Coord, playerStack.MovementLeft);
             UpdatePanel(tile);
             QueueRedraw();
             return;
         }
 
-        var playerAgent = tile.AgentIds.Select(id => _state.Agents[id]).FirstOrDefault(a => a.FactionId == _state.PlayerFaction.Id);
+        var playerAgent = tile.AgentIds.Select(id => state.Agents[id]).FirstOrDefault(a => a.FactionId == state.PlayerFaction.Id);
         if (playerAgent is not null)
         {
             _selectedAgentId = playerAgent.Id;
             _selectedStackId = null;
-            _selectedRange = GameRules.MovementRange(_state, playerAgent.Coord, playerAgent.MovementLeft);
+            _selectedRange = GameRules.MovementRange(state, playerAgent.Coord, playerAgent.MovementLeft);
             UpdatePanel(tile);
             QueueRedraw();
             return;

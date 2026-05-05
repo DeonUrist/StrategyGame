@@ -60,19 +60,11 @@ public sealed partial class FactionDirector
     private void TryUpgradeCity(GameState state, string factionId, Random random)
     {
         var city = state.Cities.Values.FirstOrDefault(c => c.FactionId == factionId);
-        var current = city?.BuildingIds.LastOrDefault();
-        if (city is null || current is null || random.NextDouble() > 0.35)
+        if (city is null || random.NextDouble() > 0.35)
         {
             return;
         }
 
-        var building = state.Database.Buildings[current];
-        if (building.UpgradesTo is null)
-        {
-            return;
-        }
-
-        city.BuildingIds.Add(building.UpgradesTo);
-        state.AddLog($"{city.Name} upgraded to {state.Database.Buildings[building.UpgradesTo].Name}.");
+        GameRules.TryUpgradeCityBuilding(state, city.Id);
     }
 }

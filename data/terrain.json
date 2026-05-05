@@ -1,7 +1,0 @@
-[
-  { "id": "water", "name": "Water", "color": "#2f80c9", "movementCost": 99, "passable": false },
-  { "id": "plains", "name": "Plains", "color": "#8dbd55", "movementCost": 1, "passable": true },
-  { "id": "grassland", "name": "Grassland", "color": "#4f9f45", "movementCost": 1, "passable": true },
-  { "id": "desert", "name": "Desert", "color": "#d8bd72", "movementCost": 2, "passable": true },
-  { "id": "swamp", "name": "Swamp", "color": "#6a8060", "movementCost": 3, "passable": true }
-]

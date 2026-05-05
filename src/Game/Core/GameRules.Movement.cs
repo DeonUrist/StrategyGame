@@ -4,14 +4,13 @@ public static partial class GameRules
 {
     public static int TileMovementCost(GameState state, HexTile tile)
     {
-        var terrain = state.Database.Terrains[tile.TerrainId];
+        var terrain = TerrainResolver.Resolve(state, tile);
         if (!terrain.Passable)
         {
             return int.MaxValue;
         }
 
-        var featureCost = tile.FeatureId is null ? 0 : state.Database.Features[tile.FeatureId].MovementCostModifier;
-        return Math.Max(1, terrain.MovementCost + featureCost);
+        return Math.Max(1, terrain.MovementCost);
     }
 
     public static Dictionary<HexCoord, int> MovementRange(GameState state, HexCoord origin, int movement)
