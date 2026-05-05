@@ -81,7 +81,7 @@ public partial class MainGame
 
     private string StackPanelText(GameState state, StackState stack)
     {
-        var faction = state.Factions.First(f => f.Id == stack.FactionId);
+        var faction = _factionById[stack.FactionId];
         var armyName = $"#{stack.Id}";
         var units = string.Join(", ", stack.Units.Select(unit => $"{unit.Count} {Escape(state.Database.Units[unit.TypeId].Name)}"));
         var leaderText = stack.JoinedAgentIds.Count == 0
@@ -97,7 +97,7 @@ public partial class MainGame
 
     private string AgentPanelText(GameState state, AgentState agent)
     {
-        var faction = state.Factions.First(f => f.Id == agent.FactionId);
+        var faction = _factionById[agent.FactionId];
         var unit = state.Database.Units[agent.TypeId];
 
         return $"[b]Agent:[/b] {ColorText(agent.Name, faction.Color)}"
@@ -109,7 +109,7 @@ public partial class MainGame
 
     private string CityPanelText(GameState state, CityState city)
     {
-        var faction = state.Factions.First(f => f.Id == city.FactionId);
+        var faction = _factionById[city.FactionId];
         return $"\nCity: {Escape(city.Name)}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
              + $"\nBuildings: {string.Join(", ", city.BuildingIds.Select(id => ColorText(state.Database.Buildings[id].Name, BuildingColor(state.Database.Buildings[id].Level))))}";
@@ -122,7 +122,8 @@ public partial class MainGame
 
     private static string ColorText(string text, string color)
     {
-        return $"[color={color}]{Escape(text)}[/color]";
+        // Strip ] so a crafted color value cannot break the BBCode tag structure.
+        return $"[color={color.Replace("]", "")}]{Escape(text)}[/color]";
     }
 
     private static string Escape(string text)

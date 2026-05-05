@@ -5,10 +5,19 @@ namespace StrategyGame.Presentation;
 
 public partial class MainGame
 {
+    private static readonly Vector2[] SparseTreeOffsets =
+    [
+        new(-8, 7), new(0, 3), new(8, 7)
+    ];
+
+    private static readonly Vector2[] DenseTreeOffsets =
+    [
+        new(-11, 2), new(-5, -1), new(2, 1), new(9, 3),
+        new(-9, 9),  new(-2, 7),  new(5, 9), new(11, 10)
+    ];
+
     private void DrawVegetation(Vector2 center, Vegetation vegetation)
     {
-        // Vegetation is drawn as repeated tiny tree glyphs made from lines and
-        // triangles. Sparse vegetation uses three trees; lush uses a cluster.
         if (vegetation == Vegetation.None)
         {
             return;
@@ -16,37 +25,13 @@ public partial class MainGame
 
         if (vegetation == Vegetation.Sparse)
         {
-            var sparseOffsets = new[]
-            {
-                new Vector2(-8, 7),
-                new Vector2(0, 3),
-                new Vector2(8, 7)
-            };
-
-            foreach (var offset in sparseOffsets)
-            {
+            foreach (var offset in SparseTreeOffsets)
                 DrawTree(center + offset, 0.68f, new Color("#3f8f44"));
-            }
-
             return;
         }
 
-        var forestOffsets = new[]
-        {
-            new Vector2(-11, 2),
-            new Vector2(-5, -1),
-            new Vector2(2, 1),
-            new Vector2(9, 3),
-            new Vector2(-9, 9),
-            new Vector2(-2, 7),
-            new Vector2(5, 9),
-            new Vector2(11, 10)
-        };
-
-        foreach (var offset in forestOffsets)
-        {
+        foreach (var offset in DenseTreeOffsets)
             DrawTree(center + offset, 0.62f, new Color("#1f6f35"));
-        }
     }
 
     private void DrawTree(Vector2 basePosition, float scale, Color canopyColor)
@@ -63,7 +48,7 @@ public partial class MainGame
             trunkTop + new Vector2(5 * scale, 2 * scale)
         };
         DrawColoredPolygon(canopy, canopyColor);
-        DrawPolyline(canopy.Append(canopy[0]).ToArray(), new Color(0, 0, 0, 0.18f), 0.75f);
+        DrawPolyline(TriBorder(canopy), new Color(0, 0, 0, 0.18f), 0.75f);
     }
 
     private void DrawElevation(Vector2 center, Elevation elevation)
@@ -114,7 +99,7 @@ public partial class MainGame
             center + new Vector2(12, 8)
         };
         DrawColoredPolygon(mountain, new Color("#777d84"));
-        DrawPolyline(mountain.Append(mountain[0]).ToArray(), new Color(0, 0, 0, 0.28f), 0.9f);
+        DrawPolyline(TriBorder(mountain), new Color(0, 0, 0, 0.28f), 0.9f);
 
         var shadow = new[]
         {

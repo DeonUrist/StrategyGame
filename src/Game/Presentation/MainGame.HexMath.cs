@@ -5,6 +5,25 @@ namespace StrategyGame.Presentation;
 
 public partial class MainGame
 {
+    // Pointy-top corner offsets at HexSize radius, computed once. The -30° start
+    // puts a vertex at the top and matches HexToPixel/PixelToHex math.
+    private static readonly Vector2[] HexCornerOffsets = BuildHexCornerOffsets();
+
+    // Reusable closed-polygon buffers. _Draw is single-threaded so sharing is safe.
+    private static readonly Vector2[] HexBorderBuffer = new Vector2[7];
+    private static readonly Vector2[] TriBorderBuffer = new Vector2[4];
+
+    private static Vector2[] BuildHexCornerOffsets()
+    {
+        var offsets = new Vector2[6];
+        for (var i = 0; i < 6; i++)
+        {
+            var angle = MathF.PI / 180f * (60f * i - 30f);
+            offsets[i] = new Vector2(HexSize * MathF.Cos(angle), HexSize * MathF.Sin(angle));
+        }
+        return offsets;
+    }
+
     private void ZoomCamera(float factor)
     {
         // Clamp zoom so the player cannot zoom so far in/out that the map becomes
@@ -59,15 +78,26 @@ public partial class MainGame
 
     private static Vector2[] HexCorners(Vector2 center)
     {
-        // Pointy-top hex corners. The -30 degree offset puts a vertex at the top
-        // and keeps the shape aligned with HexToPixel/PixelToHex math.
         var points = new Vector2[6];
         for (var i = 0; i < 6; i++)
-        {
-            var angle = MathF.PI / 180f * (60f * i - 30f);
-            points[i] = center + new Vector2(HexSize * MathF.Cos(angle), HexSize * MathF.Sin(angle));
-        }
-
+            points[i] = center + HexCornerOffsets[i];
         return points;
+    }
+
+    // Fills HexBorderBuffer with corners[0..5] + corners[0] and returns it.
+    // Avoids a heap allocation per tile for the outline polyline.
+    private static Vector2[] HexBorder(Vector2[] corners)
+    {
+        Array.Copy(corners, HexBorderBuffer, 6);
+        HexBorderBuffer[6] = corners[0];
+        return HexBorderBuffer;
+    }
+
+    // Same pattern for 3-vertex polygons (tents, roofs, mountains, tree canopies).
+    private static Vector2[] TriBorder(Vector2[] tri)
+    {
+        Array.Copy(tri, TriBorderBuffer, 3);
+        TriBorderBuffer[3] = tri[0];
+        return TriBorderBuffer;
     }
 }

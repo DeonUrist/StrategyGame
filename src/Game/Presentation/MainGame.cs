@@ -60,6 +60,9 @@ public partial class MainGame : Node2D
     private RangeCacheKey? _rangeCacheKey;
     private Dictionary<HexCoord, double> _cachedRange = [];
 
+    // Faction lookup rebuilt whenever _state changes; avoids O(n) First() in the draw hot path.
+    private Dictionary<string, FactionState> _factionById = [];
+
     public override void _Ready()
     {
         // Godot calls _Ready once when the scene starts.

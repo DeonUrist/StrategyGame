@@ -10,6 +10,7 @@ public partial class MainGame
         // Returning to the menu clears active game state so _Draw stops rendering
         // the map and the Load button can reflect whether a save file exists.
         _state = null;
+        _factionById = new Dictionary<string, FactionState>();
         ClearSelection();
         _inspectedTileCoord = null;
         _isLogCollapsed = false;
@@ -42,6 +43,7 @@ public partial class MainGame
         _menuRoot.Visible = false;
         _newGameRoot.Visible = false;
         _gameRoot.Visible = true;
+        _factionById = _state?.Factions.ToDictionary(f => f.Id) ?? [];
         ClearSelection();
         _rangeCacheKey = null;
         _cachedRange = [];
@@ -124,7 +126,17 @@ public partial class MainGame
             return;
         }
 
-        _state = GameStateSerializer.LoadFromFile(_database, _savePath);
+        try
+        {
+            _state = GameStateSerializer.LoadFromFile(_database, _savePath);
+        }
+        catch
+        {
+            // Corrupted or version-mismatched save — disable Load and stay on the menu.
+            _loadGameButton.Disabled = true;
+            return;
+        }
+
         _state.AddLog("Game loaded.");
         ShowGame();
     }

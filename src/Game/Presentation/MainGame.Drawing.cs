@@ -46,7 +46,7 @@ public partial class MainGame
 
         var corners = HexCorners(center);
         DrawColoredPolygon(corners, color);
-        DrawPolyline(corners.Append(corners[0]).ToArray(), new Color(0, 0, 0, 0.32f), 1.0f);
+        DrawPolyline(HexBorder(corners), new Color(0, 0, 0, 0.32f), 1.0f);
 
         DrawElevation(center, tile.Elevation);
         DrawVegetation(center, tile.Vegetation);
@@ -65,7 +65,7 @@ public partial class MainGame
     private void DrawCity(CityState city)
     {
         var center = HexToPixel(city.Coord);
-        var factionColor = new Color(_state!.Factions.First(f => f.Id == city.FactionId).Color);
+        var factionColor = new Color(_factionById[city.FactionId].Color);
         var mainBuildingId = city.BuildingIds.LastOrDefault() ?? "campsite";
         DrawCityMarker(center, factionColor, mainBuildingId);
     }
@@ -112,7 +112,7 @@ public partial class MainGame
         // Army stacks are circles offset down-left from the hex center. The
         // number is total unit count, not combat strength.
         var center = HexToPixel(stack.Coord) + offset;
-        DrawCircle(center, 8, new Color(_state!.Factions.First(f => f.Id == stack.FactionId).Color));
+        DrawCircle(center, 8, new Color(_factionById[stack.FactionId].Color));
         DrawString(ThemeDB.FallbackFont, center + new Vector2(-5, 5), stack.Units.Sum(u => u.Count).ToString(), HorizontalAlignment.Left, -1, 12, Colors.White);
     }
 
@@ -121,7 +121,7 @@ public partial class MainGame
         // Loose agents are smaller circles offset down-right. Joined agents are
         // skipped by _Draw because they are represented as stack leaders.
         var center = HexToPixel(agent.Coord) + offset;
-        DrawCircle(center, 6, new Color(_state!.Factions.First(f => f.Id == agent.FactionId).Color).Lightened(0.35f));
+        DrawCircle(center, 6, new Color(_factionById[agent.FactionId].Color).Lightened(0.35f));
         DrawString(ThemeDB.FallbackFont, center + new Vector2(-4, 4), "A", HorizontalAlignment.Left, -1, 11, Colors.Black);
     }
 
@@ -193,7 +193,7 @@ public partial class MainGame
             center + new Vector2(10 * scale, 8 * scale)
         };
         DrawColoredPolygon(tent, factionColor);
-        DrawPolyline(tent.Append(tent[0]).ToArray(), new Color(0, 0, 0, 0.35f), 1.0f);
+        DrawPolyline(TriBorder(tent), new Color(0, 0, 0, 0.35f), 1.0f);
         DrawLine(center + new Vector2(0, -10 * scale), center + new Vector2(0, 8 * scale), new Color(1, 1, 1, 0.28f), 1.0f);
     }
 
@@ -210,7 +210,7 @@ public partial class MainGame
             center + new Vector2(10 * scale, -1 * scale)
         };
         DrawColoredPolygon(roof, factionColor.Darkened(0.22f));
-        DrawPolyline(roof.Append(roof[0]).ToArray(), new Color(0, 0, 0, 0.28f), 1.0f);
+        DrawPolyline(TriBorder(roof), new Color(0, 0, 0, 0.28f), 1.0f);
 
         if (hasWindow)
         {
