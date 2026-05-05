@@ -14,15 +14,13 @@ public sealed partial class FactionDirector
             // Both attack and defense currently move toward enemy stacks. This
             // makes "defend city" a reactive military posture until stronger
             // garrison/zone rules exist.
-            var enemies = state.Stacks.Values
+            var nearest = state.Stacks.Values
                 .Where(s => s.FactionId != stack.FactionId)
                 .OrderBy(s => s.Coord.DistanceTo(stack.Coord))
-                .ToList();
+                .FirstOrDefault();
 
-            foreach (var enemy in enemies)
-            {
-                return ClosestReachable(range, enemy.Coord);
-            }
+            if (nearest is not null)
+                return ClosestReachable(range, nearest.Coord);
         }
 
         if (actionId == "claim_resource")
@@ -58,10 +56,15 @@ public sealed partial class FactionDirector
         return RandomReachable(range, random);
     }
 
+    private static List<HexCoord> ReachableDestinations(Dictionary<HexCoord, double> range)
+    {
+        // Excludes the origin tile, which is always present with cost 0.
+        return range.Keys.Where(c => range[c] > 0).ToList();
+    }
+
     private static HexCoord? RandomReachable(Dictionary<HexCoord, double> range, Random random)
     {
-        // Exclude the origin, which is always present with cost 0.
-        var options = range.Keys.Where(c => range[c] > 0).ToList();
+        var options = ReachableDestinations(range);
         return options.Count == 0 ? null : options[random.Next(options.Count)];
     }
 
@@ -69,7 +72,7 @@ public sealed partial class FactionDirector
     {
         // The reachable hex closest to the target is the one-turn approximation
         // of pathfinding toward that target.
-        var options = range.Keys.Where(c => range[c] > 0).ToList();
+        var options = ReachableDestinations(range);
         return options.Count == 0 ? null : options.OrderBy(c => c.DistanceTo(target)).First();
     }
 

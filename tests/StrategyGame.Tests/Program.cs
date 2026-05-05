@@ -3,27 +3,36 @@ using StrategyGame.Core;
 var root = FindProjectRoot();
 var database = GameDatabase.LoadFromDirectory(Path.Combine(root, "data"));
 
-Run("hex distance and neighbors", HexDistanceAndNeighbors);
-Run("database loads required catalogs", DatabaseLoadsRequiredCatalogs);
-Run("terrain resolver applies region biome tables", TerrainResolverAppliesRegionBiomeTables);
-Run("sandbox respects custom map size", SandboxRespectsCustomMapSize);
-Run("sandbox generation is deterministic", SandboxGenerationIsDeterministic);
-Run("sandbox has ocean border and region climate bands", SandboxHasOceanBorderAndRegionClimateBands);
-Run("sandbox has inland lakes and elevation features", SandboxHasInlandLakesAndElevationFeatures);
-Run("elevation variance controls rugged terrain", ElevationVarianceControlsRuggedTerrain);
-Run("factions start on passable island tiles", FactionsStartOnPassableIslandTiles);
-Run("movement rejects water and spends movement", MovementRejectsWaterAndSpendsMovement);
-Run("agent move does not auto attach to army", AgentMoveDoesNotAutoAttachToArmy);
-Run("agent joins and detaches from army", AgentJoinsAndDetachesFromArmy);
-Run("city building upgrade replaces previous level", CityBuildingUpgradeReplacesPreviousLevel);
-Run("combat removes losing stack", CombatRemovesLosingStack);
-Run("director produces valid AI state", DirectorProducesValidAiState);
-Run("save load preserves game state", SaveLoadPreservesGameState);
-Run("loaded AI turn replays deterministically", LoadedAiTurnReplaysDeterministically);
-Run("movement overspend allows last step", MovementOverspendAllowsLastStep);
-Run("turn cycling advances faction and counts turns", TurnCyclingAdvancesFactionAndCountsTurns);
-Run("combat applies casualties to winner", CombatAppliesCasualtiesToWinner);
-Run("move stack fails for invalid destination", MoveStackFailsForInvalidDestination);
+var tests = new (string Name, Action Test)[]
+{
+    ("hex distance and neighbors", HexDistanceAndNeighbors),
+    ("database loads required catalogs", DatabaseLoadsRequiredCatalogs),
+    ("terrain resolver applies region biome tables", TerrainResolverAppliesRegionBiomeTables),
+    ("sandbox respects custom map size", SandboxRespectsCustomMapSize),
+    ("sandbox generation is deterministic", SandboxGenerationIsDeterministic),
+    ("sandbox has ocean border and region climate bands", SandboxHasOceanBorderAndRegionClimateBands),
+    ("sandbox has inland lakes and elevation features", SandboxHasInlandLakesAndElevationFeatures),
+    ("elevation variance controls rugged terrain", ElevationVarianceControlsRuggedTerrain),
+    ("factions start on passable island tiles", FactionsStartOnPassableIslandTiles),
+    ("movement rejects water and spends movement", MovementRejectsWaterAndSpendsMovement),
+    ("agent move does not auto attach to army", AgentMoveDoesNotAutoAttachToArmy),
+    ("agent joins and detaches from army", AgentJoinsAndDetachesFromArmy),
+    ("city building upgrade replaces previous level", CityBuildingUpgradeReplacesPreviousLevel),
+    ("combat removes losing stack", CombatRemovesLosingStack),
+    ("director produces valid AI state", DirectorProducesValidAiState),
+    ("save load preserves game state", SaveLoadPreservesGameState),
+    ("loaded AI turn replays deterministically", LoadedAiTurnReplaysDeterministically),
+    ("movement overspend allows last step", MovementOverspendAllowsLastStep),
+    ("turn cycling advances faction and counts turns", TurnCyclingAdvancesFactionAndCountsTurns),
+    ("combat applies casualties to winner", CombatAppliesCasualtiesToWinner),
+    ("move stack fails for invalid destination", MoveStackFailsForInvalidDestination)
+};
+
+var requestedTests = SelectTests(tests, args);
+foreach (var test in requestedTests)
+{
+    Run(test.Name, test.Test);
+}
 
 Console.WriteLine("All strategy foundation tests passed.");
 
@@ -77,9 +86,9 @@ void TerrainResolverAppliesRegionBiomeTables()
     Assert(ResolveName(BaseBiome.Barrens, TemperatureBand.Subarctic, Vegetation.Sparse) == "Tundra", "subarctic barrens should merge into Tundra");
     Assert(TerrainResolver.ClampVegetation(BaseBiome.Desert, TemperatureBand.Tropical, Vegetation.Lush) == Vegetation.None, "desert should clamp vegetation to none");
     Assert(TerrainResolver.ClampVegetation(BaseBiome.Badlands, TemperatureBand.Temperate, Vegetation.Lush) == Vegetation.Sparse, "badlands should clamp vegetation to sparse");
-    Assert(TerrainResolver.FormatFinalBiomeName(TemperatureBand.Arctic, "Ice Sheet") == "Ice Sheet", "ice sheet should not receive a climate prefix");
-    Assert(TerrainResolver.FormatFinalBiomeName(TemperatureBand.Subtropical, "Rainforest") == "Rainforest", "rainforest should not receive a climate prefix");
-    Assert(TerrainResolver.FormatFinalBiomeName(TemperatureBand.Temperate, "Steppe") == "Steppe", "steppe should not receive a climate prefix");
+    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.Desert, TemperatureBand.Arctic, Vegetation.None) == "Ice Sheet", "ice sheet should not receive a climate prefix");
+    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.Swamp, TemperatureBand.Subtropical, Vegetation.Lush) == "Rainforest", "rainforest should not receive a climate prefix");
+    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.Wasteland, TemperatureBand.Temperate, Vegetation.None) == "Steppe", "steppe should not receive a climate prefix");
     Assert(TerrainResolver.Resolve(oceanTile).Name == "Ocean", "ocean elevation should resolve to Ocean");
     Assert(TerrainResolver.Resolve(coastTile).Name == "Coast", "coast elevation should resolve to Coast without map context");
     Assert(TerrainResolver.Resolve(deepIceTile).Name == "Ocean Ice Sheet", "deep ice should resolve to ocean ice sheet");
@@ -500,6 +509,37 @@ void Run(string name, Action test)
         Environment.ExitCode = 1;
         throw;
     }
+}
+
+IEnumerable<(string Name, Action Test)> SelectTests(IEnumerable<(string Name, Action Test)> tests, string[] arguments)
+{
+    var listedTests = tests.ToList();
+    if (arguments.Any(argument => string.Equals(argument, "--list", StringComparison.OrdinalIgnoreCase)))
+    {
+        foreach (var test in listedTests)
+        {
+            Console.WriteLine(test.Name);
+        }
+
+        Environment.Exit(0);
+    }
+
+    var filter = string.Join(' ', arguments.Where(argument => !string.Equals(argument, "--list", StringComparison.OrdinalIgnoreCase))).Trim();
+    if (filter.Length == 0)
+    {
+        return listedTests;
+    }
+
+    var matches = listedTests
+        .Where(test => test.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    if (matches.Count == 0)
+    {
+        throw new InvalidOperationException($"No tests matched filter '{filter}'. Use --list to see available names.");
+    }
+
+    return matches;
 }
 
 void Assert(bool condition, string message)

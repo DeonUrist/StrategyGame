@@ -110,7 +110,7 @@ public static partial class TerrainResolver
             (BaseBiome.Badlands, _, _) => "Badlands",
 
             (BaseBiome.Dryland, TemperatureBand.Tropical, Vegetation.Sparse) => "Savanna",
-            (BaseBiome.Dryland, TemperatureBand.Tropical, _) => "Dryland",
+            (BaseBiome.Dryland, TemperatureBand.Tropical, _) => "Steppe",
             (BaseBiome.Dryland, TemperatureBand.Subtropical, Vegetation.Sparse) => "Prairie",
             (BaseBiome.Dryland, TemperatureBand.Subtropical, _) => "Steppe",
             (BaseBiome.Dryland, TemperatureBand.Temperate, Vegetation.Sparse) => "Shrubland",
@@ -169,12 +169,5 @@ public static partial class TerrainResolver
 
             _ => biome.ToString()
         };
-    }
-
-    public static string FormatFinalBiomeName(TemperatureBand temperature, string localBiomeName)
-    {
-        // Climate is stored on RegionState and shown separately in debug text.
-        // Final terrain names stay clean and readable on the map.
-        return localBiomeName;
     }
 }

@@ -49,7 +49,7 @@ public static partial class MapGenerator
                 Temperature = temperature,
                 BaseBiome = baseBiome,
                 Vegetation = vegetation,
-                FinalBiomeName = TerrainResolver.FormatFinalBiomeName(temperature, finalName)
+                FinalBiomeName = finalName
             };
         }
 
@@ -187,8 +187,7 @@ public static partial class MapGenerator
         {
             region.Temperature = TemperatureBand.Arctic;
             region.Vegetation = TerrainResolver.ClampVegetation(region.BaseBiome, region.Temperature, region.Vegetation);
-            var finalName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
-            region.FinalBiomeName = TerrainResolver.FormatFinalBiomeName(region.Temperature, finalName);
+            region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
         }
     }
 
@@ -206,8 +205,7 @@ public static partial class MapGenerator
                 region.WaterRetention = WaterRetention.Draining;
                 region.BaseBiome = BaseBiome.Dryland;
                 region.Vegetation = TerrainResolver.ClampVegetation(region.BaseBiome, region.Temperature, region.Vegetation);
-                var finalName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
-                region.FinalBiomeName = TerrainResolver.FormatFinalBiomeName(region.Temperature, finalName);
+                region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
             }
         }
     }

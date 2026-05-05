@@ -26,6 +26,7 @@ public sealed class GameState
     // These helpers keep rule code readable and centralize faction filtering.
     public IEnumerable<StackState> StacksForFaction(string factionId) => Stacks.Values.Where(s => s.FactionId == factionId);
     public IEnumerable<AgentState> AgentsForFaction(string factionId) => Agents.Values.Where(a => a.FactionId == factionId);
+    public FactionState GetFaction(string id) => Factions.First(f => f.Id == id);
 
     // Logs are part of state so save/load preserves the player's recent history.
     public void AddLog(string text) => Log.Add(new GameLogEntry { Turn = Turn, Text = text });

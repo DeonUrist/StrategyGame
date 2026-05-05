@@ -165,7 +165,6 @@ public static class GameStateSerializer
                 FactionId = city.FactionId,
                 Coord = new HexCoord(city.Q, city.R)
             };
-            loadedCity.BuildingIds.Clear();
             loadedCity.BuildingIds.AddRange(city.BuildingIds);
             state.Cities[loadedCity.Id] = loadedCity;
         }

@@ -44,7 +44,9 @@ public static partial class MapGenerator
     {
         // City ownership is stored on the CityState. The tile stores only the id
         // so map lookups can quickly find the city on a clicked hex.
-        state.Cities[id] = new CityState { Id = id, Name = name, FactionId = factionId, Coord = coord };
+        var city = new CityState { Id = id, Name = name, FactionId = factionId, Coord = coord };
+        city.BuildingIds.Add("campsite");
+        state.Cities[id] = city;
         state.Map.Get(coord).CityId = id;
     }
 

@@ -25,7 +25,7 @@ public sealed partial class FactionDirector
         // an AI turn will replay the same AI choices.
         var random = new Random(TurnSeed(state, factionId));
         var chosenAction = ChooseWeightedAction(state, factionId, random);
-        var factionName = state.Factions.First(f => f.Id == factionId).Name;
+        var factionName = state.GetFaction(factionId).Name;
         state.AddLog($"{factionName} director chose {state.Database.Events[chosenAction].Name}.");
 
         foreach (var stack in state.StacksForFaction(factionId).ToList())

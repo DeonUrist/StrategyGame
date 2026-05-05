@@ -1,13 +1,17 @@
 namespace StrategyGame.Core;
 
+// All catalog definition records implement IHasId so the generic database
+// loader can key them by Id without reflection.
+public interface IHasId { string Id { get; } }
+
 // Definition records are the authored data shapes loaded from JSON or code.
 // They describe what a thing is in the rules database, not a live instance on
 // the board. Runtime state lives in WorldModels.cs.
-public sealed record ResourceDefinition(string Id, string Name);
-public sealed record UnitDefinition(string Id, string Name, string Kind, int Strength, double Movement);
-public sealed record BuildingDefinition(string Id, string Name, int Level, string? UpgradesTo);
-public sealed record FactionDefinition(string Id, string Name, string Color, bool IsPlayer);
-public sealed record EventDefinition(string Id, string Name, int BaseWeight);
+public sealed record ResourceDefinition(string Id, string Name) : IHasId;
+public sealed record UnitDefinition(string Id, string Name, string Kind, int Strength, double Movement) : IHasId;
+public sealed record BuildingDefinition(string Id, string Name, int Level, string? UpgradesTo) : IHasId;
+public sealed record FactionDefinition(string Id, string Name, string Color, bool IsPlayer) : IHasId;
+public sealed record EventDefinition(string Id, string Name, int BaseWeight) : IHasId;
 
 public enum Elevation
 {

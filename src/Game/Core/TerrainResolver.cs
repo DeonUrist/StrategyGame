@@ -43,8 +43,7 @@ public static partial class TerrainResolver
         // Region retention and temperature stay broad regional properties, while
         // tile moisture and vegetation may differ after elevation drying.
         var baseBiome = ResolveTileBaseBiome(region, tile);
-        var localBiomeName = ResolveRegionBiome(baseBiome, region.Temperature, tile.Vegetation);
-        var finalName = FormatFinalBiomeName(region.Temperature, localBiomeName);
+        var finalName = ResolveRegionBiome(baseBiome, region.Temperature, tile.Vegetation);
         var color = ColorFor(finalName);
         var movementCost = MovementCost(tile.Elevation, tile.Vegetation, tile.FeatureIds);
         var defense = DefenseModifier(tile.Elevation, tile.Vegetation, tile.FeatureIds);

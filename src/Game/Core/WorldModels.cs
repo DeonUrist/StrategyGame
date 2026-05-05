@@ -42,11 +42,20 @@ public sealed class RegionState
 public sealed class HexMap
 {
     private readonly Dictionary<HexCoord, HexTile> _tiles = [];
+    private int _maxRow;
+    private int _maxCol;
 
     public IEnumerable<HexTile> Tiles => _tiles.Values;
     public int Count => _tiles.Count;
 
-    public void Add(HexTile tile) => _tiles[tile.Coord] = tile;
+    public void Add(HexTile tile)
+    {
+        _tiles[tile.Coord] = tile;
+        var col = tile.Coord.Q + tile.Coord.R / 2;
+        if (tile.Coord.R > _maxRow) _maxRow = tile.Coord.R;
+        if (col > _maxCol) _maxCol = col;
+    }
+
     public bool TryGet(HexCoord coord, out HexTile tile) => _tiles.TryGetValue(coord, out tile!);
     public HexTile Get(HexCoord coord) => _tiles[coord];
     public IEnumerable<HexTile> Neighbors(HexCoord coord) => coord.Neighbors().Where(_tiles.ContainsKey).Select(Get);
@@ -66,8 +75,6 @@ public sealed class HexMap
 
         var visited = new HashSet<HexCoord>();
         var queue = new Queue<HexCoord>();
-        var maxRow = _tiles.Keys.Max(c => c.R);
-        var maxCol = _tiles.Keys.Max(c => c.Q + c.R / 2);
         visited.Add(tile.Coord);
         queue.Enqueue(tile.Coord);
 
@@ -75,7 +82,7 @@ public sealed class HexMap
         {
             var current = queue.Dequeue();
             var col = current.Q + current.R / 2;
-            if (col == 0 || current.R == 0 || col == maxCol || current.R == maxRow)
+            if (col == 0 || current.R == 0 || col == _maxCol || current.R == _maxRow)
             {
                 return true;
             }
@@ -147,7 +154,9 @@ public sealed class CityState
     public required string Name { get; init; }
     public required string FactionId { get; set; }
     public required HexCoord Coord { get; init; }
-    public List<string> BuildingIds { get; } = ["campsite"];
+    // BuildingIds starts empty; the new-game path adds "campsite" explicitly.
+    // This avoids the load path having to Clear() a default value.
+    public List<string> BuildingIds { get; } = [];
 }
 
 // GameLogEntry is intentionally tiny: all systems write human-readable text

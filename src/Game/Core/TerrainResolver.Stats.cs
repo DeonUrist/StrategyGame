@@ -49,7 +49,6 @@ public static partial class TerrainResolver
             "Desert" => "#d8bd72",
             "Wasteland" => "#9b9278",
             "Badlands" => "#b07a4f",
-            "Dryland" => "#bda463",
             "Plain" => "#8fca5a",
             "Floodplain" => "#7fb66a",
             "Wetland" => "#4f8d69",

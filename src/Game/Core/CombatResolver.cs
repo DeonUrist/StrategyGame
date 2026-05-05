@@ -24,7 +24,7 @@ public static class CombatResolver
 
         ApplyCasualties(state, winner, 0.25);
         RemoveStack(state, loser);
-        state.AddLog($"{state.Factions.First(f => f.Id == winner.FactionId).Name} won combat at {winner.Coord.Q},{winner.Coord.R}.");
+        state.AddLog($"{state.GetFaction(winner.FactionId).Name} won combat at {winner.Coord.Q},{winner.Coord.R}.");
     }
 
     public static int StackStrength(GameState state, StackState stack)

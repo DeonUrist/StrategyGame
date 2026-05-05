@@ -37,7 +37,7 @@ public static partial class GameRules
             return false;
         }
 
-        if (agent.FactionId != stack.FactionId || agent.Coord != stack.Coord || agent.JoinedStackId is not null || stack.JoinedAgentIds.Contains(agent.Id))
+        if (agent.FactionId != stack.FactionId || agent.Coord != stack.Coord || agent.JoinedStackId is not null)
         {
             return false;
         }
