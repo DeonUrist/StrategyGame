@@ -4,6 +4,9 @@ namespace StrategyGame.Core;
 
 public sealed class GameDatabase
 {
+    // Resources are code-defined for now because placement rules are also code
+    // driven. The other catalogs are JSON-authored so they can grow without
+    // touching C# rule code.
     private static readonly IReadOnlyDictionary<string, ResourceDefinition> CodeResources =
         new[]
         {
@@ -38,6 +41,8 @@ public sealed class GameDatabase
 
     private static IReadOnlyDictionary<string, T> Load<T>(string directory, string file, JsonSerializerOptions options)
     {
+        // Catalog files are arrays of records. They are converted to dictionaries
+        // by Id so rule code can do stable lookups like Units["militia"].
         var path = Path.Combine(directory, file);
         var items = JsonSerializer.Deserialize<List<T>>(File.ReadAllText(path), options)
             ?? throw new InvalidOperationException($"Could not load {path}.");
@@ -47,6 +52,9 @@ public sealed class GameDatabase
 
     private static string GetId<T>(T item)
     {
+        // Every catalog record is expected to expose an Id property. Reflection
+        // keeps the generic loader small while still failing loudly if a future
+        // catalog shape breaks that convention.
         var property = typeof(T).GetProperty("Id") ?? throw new InvalidOperationException($"{typeof(T).Name} has no Id property.");
         return (string)(property.GetValue(item) ?? throw new InvalidOperationException($"{typeof(T).Name} has a null Id."));
     }

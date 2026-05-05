@@ -1,6 +1,6 @@
 # StrategyGame
 
-Godot 4.6.1 Mono prototype for a 2D turn-based strategy game with a generated 32x32 hex island map, climate-driven terrain, resources, factions, army stacks, agents, cities, save/load, and a deterministic AI turn loop.
+Godot 4.6.1 Mono prototype for a 2D turn-based strategy game with a generated 32x32 hex island map, saved biome regions, resources, factions, army stacks, agents, cities, save/load, and a deterministic AI turn loop.
 
 ## Run
 
@@ -39,7 +39,8 @@ godot --headless --path V:\Repos\StrategyGame --quit
 - Pure simulation code lives under `src/Game/Core/` and has no Godot API dependency.
 - Godot presentation code lives under `src/Game/Presentation/` and is split into startup, input, HUD/menu, drawing, and hex math partials.
 - JSON catalogs in `data/` currently define units, buildings, factions, and weighted AI events.
-- Terrain and resources are code-defined: terrain is resolved from generated climate, rainfall, elevation, vegetation, coastline, and feature data; resources are placed by map-generation rules.
-- The sandbox generator creates an island with ocean borders, small inland lakes, mountain chains with peaks and volcanoes, rainfall/vegetation clusters, starting cities, armies, and agents.
+- Terrain and resources are code-defined: land terrain is resolved from saved biome regions with moisture, water retention, temperature, and vegetation; resources are placed by map-generation rules.
+- Biome resolution is documented in `docs/BIOME_README.md`.
+- The sandbox generator creates an island with ocean borders, small inland lakes, biome regions, region-edge hills and mountains with a few peaks, starting cities, armies, and agents.
 - Save/load snapshots are handled in core and preserve deterministic AI replay.
 - The console test harness lives under `tests/StrategyGame.Tests/`.

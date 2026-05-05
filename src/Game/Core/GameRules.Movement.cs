@@ -2,47 +2,62 @@ namespace StrategyGame.Core;
 
 public static partial class GameRules
 {
-    public static int TileMovementCost(GameState state, HexTile tile)
+    public static double TileMovementCost(GameState state, HexTile tile)
     {
+        // Movement uses the resolved terrain rather than raw tile properties so
+        // features, vegetation, and water passability all share one source of
+        // truth with combat and drawing.
         var terrain = TerrainResolver.Resolve(state, tile);
         if (!terrain.Passable)
         {
-            return int.MaxValue;
+            return double.PositiveInfinity;
         }
 
         return Math.Max(1, terrain.MovementCost);
     }
 
-    public static Dictionary<HexCoord, int> MovementRange(GameState state, HexCoord origin, int movement)
+    public static Dictionary<HexCoord, double> MovementRange(GameState state, HexCoord origin, double movement)
     {
-        // This is breadth-first pathfinding with movement costs.
+        // This is Dijkstra-style pathfinding with fractional movement costs.
         //
-        // The dictionary stores "best known cost to reach this hex".
-        // If a cheaper route to a hex is found later, that cheaper route replaces
-        // the older one and the hex is checked again from there.
-        var frontier = new Queue<HexCoord>();
-        var costs = new Dictionary<HexCoord, int> { [origin] = 0 };
-        frontier.Enqueue(origin);
+        // The dictionary stores "effective movement spent to reach this hex".
+        // The last step may overspend and consume all remaining movement without
+        // blocking entry onto the destination tile.
+        var frontier = new PriorityQueue<HexCoord, double>();
+        var costs = new Dictionary<HexCoord, double> { [origin] = 0.0 };
+        frontier.Enqueue(origin, 0.0);
 
         while (frontier.Count > 0)
         {
             var current = frontier.Dequeue();
+            var currentCost = costs[current];
             foreach (var neighbor in state.Map.Neighbors(current))
             {
+                // Impassable tiles are represented by infinity and never
+                // enter the range map. Later selection/move checks can then ask
+                // only whether the destination appears in the range dictionary.
                 var step = TileMovementCost(state, neighbor);
-                if (step == int.MaxValue)
+                if (double.IsPositiveInfinity(step))
                 {
                     continue;
                 }
 
-                var nextCost = costs[current] + step;
-                if (nextCost > movement || costs.TryGetValue(neighbor.Coord, out var existing) && existing <= nextCost)
+                var remaining = movement - currentCost;
+                if (remaining <= 0)
                 {
+                    continue;
+                }
+
+                var effectiveStep = Math.Min(step, remaining);
+                var nextCost = currentCost + effectiveStep;
+                if (costs.TryGetValue(neighbor.Coord, out var existing) && existing <= nextCost)
+                {
+                    // Skip paths that fail to improve the best known route.
                     continue;
                 }
 
                 costs[neighbor.Coord] = nextCost;
-                frontier.Enqueue(neighbor.Coord);
+                frontier.Enqueue(neighbor.Coord, nextCost);
             }
         }
 

@@ -14,6 +14,8 @@ public sealed partial class FactionDirector
 
         foreach (var item in weights)
         {
+            // Standard weighted-random selection: subtract each action's band
+            // until the roll lands inside one action.
             roll -= item.Weight;
             if (roll < 0)
             {
@@ -26,6 +28,8 @@ public sealed partial class FactionDirector
 
     private static int StateModifier(GameState state, string factionId, string actionId)
     {
+        // Modifiers are intentionally coarse. They bias the AI toward reasonable
+        // behavior without making the director a full planner.
         return actionId switch
         {
             "defend_city" when EnemyNearOwnedCity(state, factionId) => 35,
@@ -39,18 +43,24 @@ public sealed partial class FactionDirector
 
     private static bool EnemyNearOwnedCity(GameState state, string factionId)
     {
+        // A nearby enemy makes defense more attractive, even if the chosen stack
+        // later moves toward the closest enemy rather than the city itself.
         var cities = state.Cities.Values.Where(c => c.FactionId == factionId).ToList();
         return cities.Any(city => state.Stacks.Values.Any(stack => stack.FactionId != factionId && stack.Coord.DistanceTo(city.Coord) <= 4));
     }
 
     private static bool UnownedResourceExists(GameState state, string factionId)
     {
+        // Ownership pressure is approximated by distance from owned cities. This
+        // is a placeholder until explicit territory/ownership rules exist.
         var ownedCities = state.Cities.Values.Where(c => c.FactionId == factionId).Select(c => c.Coord).ToList();
         return state.Map.Tiles.Any(tile => tile.ResourceId is not null && ownedCities.All(city => city.DistanceTo(tile.Coord) > 2));
     }
 
     private static bool WeakEnemyNearby(GameState state, string factionId)
     {
+        // Compare raw stack strength and distance to decide whether attacking is
+        // tempting. Terrain defense is ignored here and applied during combat.
         var ownStacks = state.StacksForFaction(factionId).ToList();
         var enemyStacks = state.Stacks.Values.Where(s => s.FactionId != factionId).ToList();
         return ownStacks.Any(own => enemyStacks.Any(enemy => own.Coord.DistanceTo(enemy.Coord) <= 6 && CombatResolver.StackStrength(state, own) >= CombatResolver.StackStrength(state, enemy)));
@@ -58,6 +68,8 @@ public sealed partial class FactionDirector
 
     private static bool CityCanUpgrade(GameState state, string factionId)
     {
+        // A city can upgrade if its current building has an UpgradesTo link in
+        // the building catalog.
         return state.Cities.Values
             .Where(c => c.FactionId == factionId)
             .Select(c => c.BuildingIds.LastOrDefault())

@@ -5,6 +5,9 @@ namespace StrategyGame.Presentation;
 
 public partial class MainGame : Node2D
 {
+    // This partial class is split by responsibility: startup/shared fields here,
+    // input in MainGame.Input, UI construction/flow in MainGame.Ui/Flow, drawing
+    // in MainGame.Drawing, and coordinate math in MainGame.HexMath.
     private const float HexSize = 28f;
 
     private readonly FactionDirector _director = new();
@@ -12,15 +15,44 @@ public partial class MainGame : Node2D
     private GameState? _state;
     private Camera2D _camera = null!;
     private Control _menuRoot = null!;
+    private Control _newGameRoot = null!;
     private Control _gameRoot = null!;
-    private Label _infoLabel = null!;
-    private Label _logLabel = null!;
+    private RichTextLabel _selectionInfoLabel = null!;
+    private RichTextLabel _tileInfoLabel = null!;
+    private RichTextLabel _logLabel = null!;
+    private Label _logHeaderLabel = null!;
+    private VBoxContainer _actionMenuButtons = null!;
     private Button _loadGameButton = null!;
+    private Button _attachToArmyButton = null!;
     private Button _detachLeaderButton = null!;
+    private Button _endTurnButton = null!;
+    private Button _gearButton = null!;
+    private Button _logToggleButton = null!;
+    private Control _actionMenuPanel = null!;
+    private Control _gearMenuPanel = null!;
+    private Control _logPanel = null!;
+    private Control _exitConfirmOverlay = null!;
+    private Label _mapSizeValueLabel = null!;
+    private Label _wetnessValueLabel = null!;
+    private Label _vegetationValueLabel = null!;
+    private Label _elevationValueLabel = null!;
+    private Label _maxSeaValueLabel = null!;
+    private Label _climateBiasValueLabel = null!;
+    private HSlider _mapSizeSlider = null!;
+    private HSlider _wetnessSlider = null!;
+    private HSlider _vegetationSlider = null!;
+    private HSlider _elevationSlider = null!;
+    private HSlider _maxSeaSlider = null!;
+    private HSlider _climateBiasSlider = null!;
     private string _savePath = "";
+
+    // Selection stores either a stack id or an agent id. _selectedRange is the
+    // precomputed movement map used both for highlighting and validating clicks.
     private int? _selectedStackId;
     private int? _selectedAgentId;
-    private Dictionary<HexCoord, int> _selectedRange = [];
+    private HexCoord? _inspectedTileCoord;
+    private bool _isLogCollapsed;
+    private Dictionary<HexCoord, double> _selectedRange = [];
 
     public override void _Ready()
     {

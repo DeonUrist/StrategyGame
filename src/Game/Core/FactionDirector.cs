@@ -2,6 +2,8 @@ namespace StrategyGame.Core;
 
 public sealed partial class FactionDirector
 {
+    // BaseSeed lets tests create deterministic directors while still deriving
+    // per-turn randomness from current state.
     private readonly int _baseSeed;
 
     public FactionDirector(int baseSeed = 7781)
@@ -28,6 +30,8 @@ public sealed partial class FactionDirector
 
         foreach (var stack in state.StacksForFaction(factionId).ToList())
         {
+            // Copy stacks to a list because movement can trigger combat, and
+            // combat can remove stacks while the AI turn is still iterating.
             if (!state.Stacks.ContainsKey(stack.Id))
             {
                 continue;
@@ -42,6 +46,8 @@ public sealed partial class FactionDirector
 
         foreach (var agent in state.AgentsForFaction(factionId).Where(a => a.JoinedStackId is null).ToList())
         {
+            // Joined agents are leaders inside stacks, so only loose agents make
+            // independent scouting moves.
             var target = ChooseScoutTarget(state, agent.Coord, agent.MovementLeft, random);
             if (target is not null)
             {
@@ -54,6 +60,9 @@ public sealed partial class FactionDirector
 
     private int TurnSeed(GameState state, string factionId)
     {
+        // unchecked preserves deterministic overflow behavior. The exact number
+        // is unimportant; what matters is that the same turn/faction produces
+        // the same random sequence after a save/load round trip.
         unchecked
         {
             var seed = _baseSeed;

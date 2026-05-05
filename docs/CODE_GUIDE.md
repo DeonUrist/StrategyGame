@@ -15,10 +15,16 @@ Core files live in `src/Game/Core`. They do not use Godot APIs, so they are easi
 - `Definitions.cs`: shared game data shapes and terrain enums.
 - `GameDatabase.cs`: loads unit, building, faction, and event catalogs from `data/`, and defines resources in code.
 - `GameState.cs`: top-level runtime state, faction helpers, and game log helper.
-- `WorldModels.cs`: runtime game objects such as tiles, armies, agents, cities, factions, and log entries.
+- `WorldModels.cs`: runtime game objects such as tiles, saved biome regions, worldgen settings, armies, agents, cities, factions, and log entries.
 - `HexCoord.cs`: axial hex coordinate math, neighbors, and distance.
-- `MapGenerator.cs`: creates the deterministic 32x32 sandbox island, inland lakes, mountain chains, vegetation clusters, resources, cities, armies, and agents.
-- `TerrainResolver.cs`: turns climate, rainfall, elevation, vegetation, and special features into final tile names, colors, movement, and defense values.
+- `MapGenerator.cs`: top-level deterministic 32x32 sandbox generation flow and base tile creation.
+- `MapGenerator.Geometry.cs`: axial/row-column conversion, coastline shape, and map-edge helpers.
+- `MapGenerator.Regions.cs`: saved biome region creation, moisture/water-retention assignment, north/south temperature bands, and vegetation rolls.
+- `MapGenerator.TerrainFeatures.cs`: inland lakes, region-edge hill/mountain/peak generation, elevation drying, volcanoes, and resource placement.
+- `MapGenerator.StartingPieces.cs`: faction starting cities, army stacks, agents, and start-location fallback.
+- `TerrainResolver.cs`: public terrain resolution entry points for water and saved region biomes.
+- `TerrainResolver.Biomes.cs`: moisture/water-retention base biome table and base-biome/temperature/vegetation final biome table.
+- `TerrainResolver.Stats.cs`: water terrain names, terrain colors, movement costs, and defense modifiers.
 - `GameRules.Movement.cs`: movement cost and pathfinding range.
 - `GameRules.Stacks.cs`: army stack movement and combat entry.
 - `GameRules.Agents.cs`: agent movement, joining armies, and detaching leaders.
@@ -36,8 +42,11 @@ Presentation files live in `src/Game/Presentation`. They connect player input an
 
 - `MainGame.cs`: scene startup, database load, sandbox creation, shared state fields.
 - `MainGame.Input.cs`: mouse clicks, camera zoom, camera pan, selection, and move commands.
-- `MainGame.Ui.cs`: buttons, info panel, save/load, end-turn flow.
-- `MainGame.Drawing.cs`: map, city, army, and agent drawing.
+- `MainGame.Ui.cs`: menu and HUD control construction.
+- `MainGame.Flow.cs`: screen switching, new/load/save game flow, end-turn handling, and leader detach command.
+- `MainGame.InfoPanel.cs`: selected-unit, tile, and log text formatting for the HUD.
+- `MainGame.Drawing.cs`: draw-pass order plus map, city, army, and agent drawing.
+- `MainGame.Drawing.Terrain.cs`: terrain ornaments such as trees, hills, mountains, volcanoes, and resource markers.
 - `MainGame.HexMath.cs`: convert between hex coordinates and Godot pixel positions.
 
 ## Data
@@ -45,12 +54,12 @@ Presentation files live in `src/Game/Presentation`. They connect player input an
 Authored catalogs in `data/` are:
 
 - `units.json`: militia, spearmen, scout, and captain definitions.
-- `buildings.json`: Shelter -> Camp -> Townsquare -> Town Center upgrade chain.
+- `buildings.json`: Campsite -> Shelter -> Encampment -> Village Square -> Town Square -> City Square upgrade chain.
 - `factions.json`: one player faction and two AI factions.
 - `events.json`: weighted AI actions: defend city, claim resource, attack enemy, scout, and upgrade city.
 
-There are no `terrain.json`, `resources.json`, or `features.json` catalogs in the current design. Terrain is resolved in `TerrainResolver.cs`; resources and special features are defined and placed from code because their behavior is tied to generated map properties.
+There are no `terrain.json`, `resources.json`, or `features.json` catalogs in the current design. Land terrain is resolved from saved biome regions; resources and special features are defined and placed from code because their behavior is tied to generated map properties.
 
 ## Tests
 
-The test harness in `tests/StrategyGame.Tests` compiles the core game logic directly. It covers hex math, database loading, terrain resolution, deterministic map generation, movement, agent attach/detach, city upgrades, combat, AI validity, save/load round trips, and deterministic loaded AI turns.
+The test harness in `tests/StrategyGame.Tests` compiles the core game logic directly. It covers hex math, database loading, terrain resolution, deterministic map generation, region/elevation constraints, movement, agent attach/detach, city upgrades, combat, AI validity, save/load round trips, and deterministic loaded AI turns.

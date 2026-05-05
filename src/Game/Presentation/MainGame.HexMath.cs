@@ -7,6 +7,8 @@ public partial class MainGame
 {
     private void ZoomCamera(float factor)
     {
+        // Clamp zoom so the player cannot zoom so far in/out that the map becomes
+        // impossible to navigate.
         var zoom = Mathf.Clamp(_camera.Zoom.X * factor, 0.45f, 2.0f);
         _camera.Zoom = new Vector2(zoom, zoom);
     }
@@ -22,6 +24,8 @@ public partial class MainGame
 
     private static HexCoord PixelToHex(Vector2 point)
     {
+        // This is the inverse of HexToPixel for pointy-top axial hexes. It
+        // produces fractional q/r values that RoundAxial snaps to a real hex.
         var x = point.X - 70f;
         var y = point.Y - 70f;
         var q = MathF.Sqrt(3f) / 3f * x / HexSize - 1f / 3f * y / HexSize;
@@ -55,6 +59,8 @@ public partial class MainGame
 
     private static Vector2[] HexCorners(Vector2 center)
     {
+        // Pointy-top hex corners. The -30 degree offset puts a vertex at the top
+        // and keeps the shape aligned with HexToPixel/PixelToHex math.
         var points = new Vector2[6];
         for (var i = 0; i < 6; i++)
         {

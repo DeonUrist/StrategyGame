@@ -7,6 +7,8 @@ public partial class MainGame
 {
     public override void _Draw()
     {
+        // Godot calls _Draw after QueueRedraw. Draw order matters: base terrain
+        // first, then cities, then mobile pieces so units are visible on top.
         if (_state is not { } state)
         {
             return;
@@ -22,19 +24,17 @@ public partial class MainGame
             DrawCity(city);
         }
 
-        foreach (var stack in state.Stacks.Values)
+        foreach (var tile in state.Map.Tiles)
         {
-            DrawStack(stack);
-        }
-
-        foreach (var agent in state.Agents.Values.Where(a => a.JoinedStackId is null))
-        {
-            DrawAgent(agent);
+            DrawStacksOnTile(tile);
+            DrawAgentsOnTile(tile);
         }
     }
 
     private void DrawTile(HexTile tile)
     {
+        // Tiles are immediate-mode hex polygons. The resolved terrain supplies
+        // the base color, while selected movement range lightly highlights tiles.
         var center = HexToPixel(tile.Coord);
         var terrain = TerrainResolver.Resolve(_state!, tile);
         var color = new Color(terrain.Color);
@@ -65,183 +65,169 @@ public partial class MainGame
     private void DrawCity(CityState city)
     {
         var center = HexToPixel(city.Coord);
-        DrawRect(new Rect2(center - new Vector2(9, 9), new Vector2(18, 18)), Colors.White);
-        DrawRect(new Rect2(center - new Vector2(7, 7), new Vector2(14, 14)), new Color(_state!.Factions.First(f => f.Id == city.FactionId).Color));
+        var factionColor = new Color(_state!.Factions.First(f => f.Id == city.FactionId).Color);
+        var mainBuildingId = city.BuildingIds.LastOrDefault() ?? "campsite";
+        DrawCityMarker(center, factionColor, mainBuildingId);
     }
 
-    private void DrawStack(StackState stack)
+    private void DrawStacksOnTile(HexTile tile)
     {
-        var center = HexToPixel(stack.Coord) + new Vector2(-10, 10);
+        var stacks = tile.StackIds
+            .Where(id => _state!.Stacks.ContainsKey(id))
+            .Select(id => _state!.Stacks[id])
+            .OrderBy(s => s.Id)
+            .ToList();
+
+        for (var i = 0; i < stacks.Count; i++)
+        {
+            DrawStack(stacks[i], PieceOffset(i, stacks.Count, new Vector2(-12, 10)));
+        }
+    }
+
+    private void DrawAgentsOnTile(HexTile tile)
+    {
+        var agents = tile.AgentIds
+            .Where(id => _state!.Agents.ContainsKey(id))
+            .Select(id => _state!.Agents[id])
+            .Where(a => a.JoinedStackId is null)
+            .OrderBy(a => a.Id)
+            .ToList();
+
+        for (var i = 0; i < agents.Count; i++)
+        {
+            DrawAgent(agents[i], PieceOffset(i, agents.Count, new Vector2(12, 10)));
+        }
+    }
+
+    private static Vector2 PieceOffset(int index, int count, Vector2 baseOffset)
+    {
+        // Multiple armies or agents can occupy one hex. Spread same-kind markers
+        // horizontally around their normal anchor so each remains clickable by
+        // repeated tile selection and visible to the player.
+        return baseOffset + new Vector2((index - (count - 1) / 2f) * 13f, 0);
+    }
+
+    private void DrawStack(StackState stack, Vector2 offset)
+    {
+        // Army stacks are circles offset down-left from the hex center. The
+        // number is total unit count, not combat strength.
+        var center = HexToPixel(stack.Coord) + offset;
         DrawCircle(center, 8, new Color(_state!.Factions.First(f => f.Id == stack.FactionId).Color));
         DrawString(ThemeDB.FallbackFont, center + new Vector2(-5, 5), stack.Units.Sum(u => u.Count).ToString(), HorizontalAlignment.Left, -1, 12, Colors.White);
     }
 
-    private void DrawAgent(AgentState agent)
+    private void DrawAgent(AgentState agent, Vector2 offset)
     {
-        var center = HexToPixel(agent.Coord) + new Vector2(12, 10);
+        // Loose agents are smaller circles offset down-right. Joined agents are
+        // skipped by _Draw because they are represented as stack leaders.
+        var center = HexToPixel(agent.Coord) + offset;
         DrawCircle(center, 6, new Color(_state!.Factions.First(f => f.Id == agent.FactionId).Color).Lightened(0.35f));
         DrawString(ThemeDB.FallbackFont, center + new Vector2(-4, 4), "A", HorizontalAlignment.Left, -1, 11, Colors.Black);
     }
 
-    private void DrawVegetation(Vector2 center, Vegetation vegetation)
+    private void DrawCityMarker(Vector2 center, Color factionColor, string mainBuildingId)
     {
-        if (vegetation == Vegetation.None)
+        switch (mainBuildingId)
         {
-            return;
-        }
-
-        if (vegetation == Vegetation.Sparse)
-        {
-            var sparseOffsets = new[]
-            {
-                new Vector2(-8, 7),
-                new Vector2(0, 3),
-                new Vector2(8, 7)
-            };
-
-            foreach (var offset in sparseOffsets)
-            {
-                DrawTree(center + offset, 0.68f, new Color("#3f8f44"));
-            }
-
-            return;
-        }
-
-        var forestOffsets = new[]
-        {
-            new Vector2(-11, 2),
-            new Vector2(-5, -1),
-            new Vector2(2, 1),
-            new Vector2(9, 3),
-            new Vector2(-9, 9),
-            new Vector2(-2, 7),
-            new Vector2(5, 9),
-            new Vector2(11, 10)
-        };
-
-        foreach (var offset in forestOffsets)
-        {
-            DrawTree(center + offset, 0.62f, new Color("#1f6f35"));
-        }
-    }
-
-    private void DrawTree(Vector2 basePosition, float scale, Color canopyColor)
-    {
-        var trunkTop = basePosition + new Vector2(0, -6 * scale);
-        DrawLine(basePosition, trunkTop, new Color("#5b3a1f"), Math.Max(1.0f, 2.0f * scale));
-
-        var canopy = new[]
-        {
-            trunkTop + new Vector2(0, -7 * scale),
-            trunkTop + new Vector2(-5 * scale, 2 * scale),
-            trunkTop + new Vector2(5 * scale, 2 * scale)
-        };
-        DrawColoredPolygon(canopy, canopyColor);
-        DrawPolyline(canopy.Append(canopy[0]).ToArray(), new Color(0, 0, 0, 0.18f), 0.75f);
-    }
-
-    private void DrawElevation(Vector2 center, Elevation elevation)
-    {
-        switch (elevation)
-        {
-            case Elevation.Hills:
-                DrawHill(center + new Vector2(0, -10));
+            case "campsite":
+                DrawCampsite(center, factionColor);
                 break;
-            case Elevation.Mountains:
-                DrawMountain(center + new Vector2(0, -9), hasSnowCap: false);
+            case "shelter":
+                DrawTent(center, factionColor, 1);
                 break;
-            case Elevation.Peaks:
-                DrawMountain(center + new Vector2(0, -9), hasSnowCap: true);
+            case "encampment":
+                DrawTent(center + new Vector2(-6, 1), factionColor, 0.92f);
+                DrawTent(center + new Vector2(0, -1), factionColor.Lightened(0.08f), 1.0f);
+                DrawTent(center + new Vector2(7, 2), factionColor.Darkened(0.08f), 0.88f);
+                break;
+            case "villagesquare":
+                DrawHouse(center, factionColor, 1.0f, hasWindow: true);
+                break;
+            case "townsquare":
+                DrawHouse(center + new Vector2(-8, 2), factionColor.Lightened(0.08f), 0.84f, hasWindow: true);
+                DrawHouse(center + new Vector2(0, -2), factionColor, 1.0f, hasWindow: true);
+                DrawHouse(center + new Vector2(9, 3), factionColor.Darkened(0.08f), 0.8f, hasWindow: true);
+                break;
+            case "citysquare":
+                DrawCastleTown(center, factionColor);
+                break;
+            default:
+                DrawHouse(center, factionColor, 1.0f, hasWindow: true);
                 break;
         }
     }
 
-    private void DrawHill(Vector2 center)
+    private void DrawCampsite(Vector2 center, Color factionColor)
     {
-        var hillColor = new Color("#6f7f55");
-        var outline = new Color(0, 0, 0, 0.22f);
-        var points = new[]
-        {
-            center + new Vector2(-12, 6),
-            center + new Vector2(-7, -1),
-            center + new Vector2(0, -5),
-            center + new Vector2(7, -1),
-            center + new Vector2(12, 6)
-        };
+        var stickColor = factionColor.Darkened(0.6f);
+        DrawLine(center + new Vector2(-7, 10), center + new Vector2(-1, 3), stickColor, 1.8f);
+        DrawLine(center + new Vector2(7, 10), center + new Vector2(1, 3), stickColor, 1.8f);
+        DrawLine(center + new Vector2(-3, 11), center + new Vector2(4, 2), stickColor, 1.6f);
 
-        DrawPolyline(points, hillColor, 3.0f);
-        DrawPolyline(points, outline, 0.8f);
+        var outerFlame = new[]
+        {
+            center + new Vector2(0, -7),
+            center + new Vector2(-5, 1),
+            center + new Vector2(-2, 8),
+            center + new Vector2(0, 4),
+            center + new Vector2(2, 8),
+            center + new Vector2(5, 1)
+        };
+        DrawColoredPolygon(outerFlame, new Color("#ef8b2c"));
+        var innerFlame = new[]
+        {
+            center + new Vector2(0, -3),
+            center + new Vector2(-2, 2),
+            center + new Vector2(0, 6),
+            center + new Vector2(2, 2)
+        };
+        DrawColoredPolygon(innerFlame, new Color("#ffe7a3"));
     }
 
-    private void DrawMountain(Vector2 center, bool hasSnowCap)
+    private void DrawTent(Vector2 center, Color factionColor, float scale)
     {
-        var mountain = new[]
+        var tent = new[]
         {
-            center + new Vector2(-12, 8),
-            center + new Vector2(0, -10),
-            center + new Vector2(12, 8)
+            center + new Vector2(0, -10 * scale),
+            center + new Vector2(-10 * scale, 8 * scale),
+            center + new Vector2(10 * scale, 8 * scale)
         };
-        DrawColoredPolygon(mountain, new Color("#777d84"));
-        DrawPolyline(mountain.Append(mountain[0]).ToArray(), new Color(0, 0, 0, 0.28f), 0.9f);
+        DrawColoredPolygon(tent, factionColor);
+        DrawPolyline(tent.Append(tent[0]).ToArray(), new Color(0, 0, 0, 0.35f), 1.0f);
+        DrawLine(center + new Vector2(0, -10 * scale), center + new Vector2(0, 8 * scale), new Color(1, 1, 1, 0.28f), 1.0f);
+    }
 
-        var shadow = new[]
+    private void DrawHouse(Vector2 center, Color factionColor, float scale, bool hasWindow = false)
+    {
+        var baseRect = new Rect2(center + new Vector2(-8 * scale, -1 * scale), new Vector2(16 * scale, 13 * scale));
+        DrawRect(baseRect, factionColor);
+        DrawRect(baseRect, new Color(0, 0, 0, 0.28f), false, 1.0f);
+
+        var roof = new[]
         {
-            center + new Vector2(0, -10),
-            center + new Vector2(12, 8),
-            center + new Vector2(3, 8)
+            center + new Vector2(0, -11 * scale),
+            center + new Vector2(-10 * scale, -1 * scale),
+            center + new Vector2(10 * scale, -1 * scale)
         };
-        DrawColoredPolygon(shadow, new Color("#5f666d"));
+        DrawColoredPolygon(roof, factionColor.Darkened(0.22f));
+        DrawPolyline(roof.Append(roof[0]).ToArray(), new Color(0, 0, 0, 0.28f), 1.0f);
 
-        if (!hasSnowCap)
+        if (hasWindow)
         {
-            return;
+            DrawRect(new Rect2(center + new Vector2(-5 * scale, 3 * scale), new Vector2(3 * scale, 3 * scale)), Colors.LightGoldenrod);
+            DrawRect(new Rect2(center + new Vector2(2 * scale, 3 * scale), new Vector2(3 * scale, 3 * scale)), Colors.LightGoldenrod);
         }
-
-        var snow = new[]
-        {
-            center + new Vector2(0, -10),
-            center + new Vector2(-4, -3),
-            center + new Vector2(0, -5),
-            center + new Vector2(4, -3)
-        };
-        DrawColoredPolygon(snow, Colors.White);
     }
 
-    private void DrawVolcano(Vector2 center, Elevation elevation)
+    private void DrawCastleTown(Vector2 center, Color factionColor)
     {
-        var plumeBase = elevation == Elevation.Peaks
-            ? center + new Vector2(0, -21)
-            : center + new Vector2(0, -19);
+        DrawRect(new Rect2(center + new Vector2(-14, 2), new Vector2(28, 11)), factionColor);
+        DrawRect(new Rect2(center + new Vector2(-8, -14), new Vector2(16, 27)), factionColor.Lightened(0.06f));
+        DrawRect(new Rect2(center + new Vector2(-3, 4), new Vector2(6, 9)), new Color("#5c3c2f"));
 
-        var lava = new[]
+        for (var i = -8; i <= 4; i += 4)
         {
-            plumeBase + new Vector2(-4, 6),
-            plumeBase + new Vector2(0, -3),
-            plumeBase + new Vector2(4, 6)
-        };
-        DrawColoredPolygon(lava, new Color("#c73624"));
-
-        DrawCircle(plumeBase + new Vector2(-3, -7), 3.2f, new Color(0.42f, 0.42f, 0.42f, 0.72f));
-        DrawCircle(plumeBase + new Vector2(2, -10), 4.0f, new Color(0.55f, 0.55f, 0.55f, 0.62f));
-        DrawCircle(plumeBase + new Vector2(7, -7), 2.8f, new Color(0.68f, 0.68f, 0.68f, 0.52f));
-    }
-
-    private void DrawResource(Vector2 position, string resourceId)
-    {
-        DrawCircle(position, 4, ResourceColor(resourceId));
-        DrawCircle(position, 2, ResourceColor(resourceId).Lightened(0.25f));
-    }
-
-    private static Color ResourceColor(string resourceId)
-    {
-        return resourceId switch
-        {
-            "copper" => new Color("#a6532f"),
-            "iron" => new Color("#3f4145"),
-            "gold" => Colors.Gold,
-            "silver" => new Color("#aebfc6"),
-            "game" => new Color("#b73535"),
-            _ => Colors.Gold
-        };
+            DrawRect(new Rect2(center + new Vector2(i, -18), new Vector2(3, 5)), factionColor.Lightened(0.14f));
+        }
     }
 }

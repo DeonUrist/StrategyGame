@@ -8,13 +8,14 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 
 - Godot 4.6.1 Mono project using C# and `net10.0`.
 - JSON-authored catalogs for units, buildings, factions, and weighted AI events.
-- Code-defined terrain resolver for climate, rainfall, elevation, vegetation, coastline, and special feature combinations.
+- Code-defined terrain resolver for saved biome regions, elevation, vegetation, coastline, and special feature combinations.
 - Seeded 32x32 generated hex island map using axial coordinates.
-- Ocean border, small inland lakes, mountain chains, peaks, volcano features, climate bands, rainfall regions, and vegetation clusters.
+- Ocean border, small inland lakes, region-edge hills, mountains, peaks, volcano features, saved biome regions, north/south temperature bands, moisture, water retention, and vegetation rolls.
 - Ground and water terrain, terrain movement costs, terrain defense modifiers, resources, cities, armies, and agents.
+- Saved worldgen settings for wetness, vegetation, elevation variance, and climate bias.
 - Multi-unit army stacks per tile.
 - Agent units that can move independently, join a friendly army as leader, and detach.
-- City state with a building chain: Shelter -> Camp -> Townsquare -> Town Center.
+- City state with a building chain: Campsite -> Shelter -> Encampment -> Village Square -> Town Square -> City Square.
 - City building upgrades replace the previous chain level instead of adding every level beside it.
 - Turn manager behavior through `GameRules.AdvanceTurn`.
 - Player controls one faction with an army and agent.
@@ -29,7 +30,7 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 
 - `src/Game/Core`: pure simulation models and rules. Keep Godot-specific APIs out of this layer.
 - `src/Game/Presentation`: Godot scene scripts, input, drawing, UI, and camera.
-- `data`: JSON game definitions for units, buildings, factions, and events. Terrain, resources, and map features currently live in code because they are generated from composable map properties.
+- `data`: JSON game definitions for units, buildings, factions, and events. Terrain regions, resources, and map features currently live in code because they are generated from composable map properties.
 - `tests/StrategyGame.Tests`: simple executable test harness that compiles core files directly.
 
 ## Deliberate Placeholders

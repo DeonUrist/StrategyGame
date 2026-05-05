@@ -4,6 +4,8 @@ public static partial class GameRules
 {
     public static void ResetFactionMovement(GameState state, string factionId)
     {
+        // Movement allowances come from unit definitions so changing unit data
+        // updates both player and AI turns. A stack uses the slowest unit's move.
         foreach (var stack in state.StacksForFaction(factionId))
         {
             stack.MovementLeft = stack.Units.Count == 0 ? 0 : stack.Units.Min(u => state.Database.Units[u.TypeId].Movement);
@@ -11,6 +13,8 @@ public static partial class GameRules
 
         foreach (var agent in state.AgentsForFaction(factionId))
         {
+            // Agents use their own unit definition because they are single
+            // character-style pieces rather than stacks of many unit rows.
             agent.MovementLeft = state.Database.Units[agent.TypeId].Movement;
         }
     }

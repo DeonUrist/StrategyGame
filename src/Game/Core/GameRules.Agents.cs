@@ -4,6 +4,8 @@ public static partial class GameRules
 {
     public static bool TryMoveAgent(GameState state, int agentId, HexCoord destination)
     {
+        // Joined agents are no longer independent map pieces. They move only as
+        // part of their stack until detached.
         if (!state.Agents.TryGetValue(agentId, out var agent) || agent.JoinedStackId is not null || !state.Map.TryGet(destination, out var tile))
         {
             return false;
@@ -12,52 +14,65 @@ public static partial class GameRules
         var range = MovementRange(state, agent.Coord, agent.MovementLeft);
         if (!range.TryGetValue(destination, out var cost) || cost == 0)
         {
+            // Agents cannot move to unreachable tiles or "move" onto their
+            // current tile.
             return false;
         }
 
+        // Keep the tile index and the agent's own coordinate in sync.
         state.Map.Get(agent.Coord).AgentIds.Remove(agent.Id);
         tile.AgentIds.Add(agent.Id);
         agent.Coord = destination;
-        agent.MovementLeft -= cost;
-
-        // Agents automatically become leaders when they step onto a friendly army
-        // that does not already have a leader.
-        var friendlyStack = tile.StackIds.Select(id => state.Stacks[id]).FirstOrDefault(s => s.FactionId == agent.FactionId && s.LeaderAgentId is null);
-        if (friendlyStack is not null)
-        {
-            TryJoinAgentToStack(state, agent.Id, friendlyStack.Id);
-        }
+        agent.MovementLeft = Math.Max(0.0, agent.MovementLeft - cost);
 
         return true;
     }
 
     public static bool TryJoinAgentToStack(GameState state, int agentId, int stackId)
     {
+        // Joining is only valid for a colocated friendly stack. The agent leaves
+        // the tile index because it is represented by the stack while joined.
         if (!state.Agents.TryGetValue(agentId, out var agent) || !state.Stacks.TryGetValue(stackId, out var stack))
         {
             return false;
         }
 
-        if (agent.FactionId != stack.FactionId || agent.Coord != stack.Coord || agent.JoinedStackId is not null || stack.LeaderAgentId is not null)
+        if (agent.FactionId != stack.FactionId || agent.Coord != stack.Coord || agent.JoinedStackId is not null || stack.JoinedAgentIds.Contains(agent.Id))
         {
             return false;
         }
 
         state.Map.Get(agent.Coord).AgentIds.Remove(agent.Id);
         agent.JoinedStackId = stack.Id;
-        stack.LeaderAgentId = agent.Id;
+        stack.JoinedAgentIds.Add(agent.Id);
         state.AddLog($"{agent.Name} joined army {stack.Id}.");
         return true;
     }
 
     public static bool TryDetachLeader(GameState state, int stackId)
     {
-        if (!state.Stacks.TryGetValue(stackId, out var stack) || stack.LeaderAgentId is not { } agentId || !state.Agents.TryGetValue(agentId, out var agent))
+        // Backward-compatible helper: detach the first joined agent from a stack.
+        if (!state.Stacks.TryGetValue(stackId, out var stack) || stack.JoinedAgentIds.Count == 0)
         {
             return false;
         }
 
-        stack.LeaderAgentId = null;
+        return TryDetachAgentFromStack(state, stack.JoinedAgentIds[0]);
+    }
+
+    public static bool TryDetachAgentFromStack(GameState state, int agentId)
+    {
+        // Detaching reverses the join relationship and places the agent back on
+        // the stack's current tile as an independent piece.
+        if (!state.Agents.TryGetValue(agentId, out var agent)
+            || agent.JoinedStackId is not { } stackId
+            || !state.Stacks.TryGetValue(stackId, out var stack)
+            || !stack.JoinedAgentIds.Contains(agentId))
+        {
+            return false;
+        }
+
+        stack.JoinedAgentIds.Remove(agentId);
         agent.JoinedStackId = null;
         agent.Coord = stack.Coord;
         state.Map.Get(stack.Coord).AgentIds.Add(agent.Id);
