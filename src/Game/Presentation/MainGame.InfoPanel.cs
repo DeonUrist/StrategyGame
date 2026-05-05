@@ -76,7 +76,7 @@ public partial class MainGame
 
     private static string RegionPanelText(RegionState region)
     {
-        return $"\nRegion {region.Id}: {ColorText(region.Temperature.ToString(), ClimateColor(region.Temperature))}, {ColorText(region.WaterRetention.ToString(), WaterRetentionColor(region.WaterRetention))}, {ColorText(region.FinalBiomeName, BaseBiomeColor(region.BaseBiome))}";
+        return $"\n{region.Name} ({region.Id}): {ColorText(region.Temperature.ToString(), ClimateColor(region.Temperature))}, {ColorText(region.WaterRetention.ToString(), WaterRetentionColor(region.WaterRetention))}, {ColorText(region.FinalBiomeName, BaseBiomeColor(region.BaseBiome))}";
     }
 
     private string StackPanelText(GameState state, StackState stack)

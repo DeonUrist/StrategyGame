@@ -27,6 +27,7 @@ public sealed class HexTile
 public sealed class RegionState
 {
     public int Id { get; init; }
+    public required string Name { get; set; }
     public List<HexCoord> TileCoords { get; } = [];
     public MoistureLevel Moisture { get; set; }
     public WaterRetention WaterRetention { get; set; }

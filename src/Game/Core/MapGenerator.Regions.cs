@@ -40,10 +40,12 @@ public static partial class MapGenerator
             var baseBiome = TerrainResolver.PickBaseBiome(moisture, retention, temperature);
             var vegetation = PickVegetation(baseBiome, temperature, state.WorldGeneration.Vegetation, random);
             var finalName = TerrainResolver.ResolveRegionBiome(baseBiome, temperature, vegetation);
+            var regionId = i + 1;
 
-            state.Regions[i + 1] = new RegionState
+            state.Regions[regionId] = new RegionState
             {
-                Id = i + 1,
+                Id = regionId,
+                Name = RegionNameGenerator.Generate(finalName, temperature, seed ^ regionId),
                 Moisture = moisture,
                 WaterRetention = retention,
                 Temperature = temperature,
@@ -188,6 +190,7 @@ public static partial class MapGenerator
             region.Temperature = TemperatureBand.Arctic;
             region.Vegetation = TerrainResolver.ClampVegetation(region.BaseBiome, region.Temperature, region.Vegetation);
             region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
+            region.Name = RegionNameGenerator.Generate(region.FinalBiomeName, region.Temperature, region.Id);
         }
     }
 
@@ -206,6 +209,7 @@ public static partial class MapGenerator
                 region.BaseBiome = BaseBiome.Dryland;
                 region.Vegetation = TerrainResolver.ClampVegetation(region.BaseBiome, region.Temperature, region.Vegetation);
                 region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
+                region.Name = RegionNameGenerator.Generate(region.FinalBiomeName, region.Temperature, seed ^ region.Id);
             }
         }
     }

@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 9;
+    private const int CurrentVersion = 10;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -105,6 +105,7 @@ public static class GameStateSerializer
             var loadedRegion = new RegionState
             {
                 Id = region.Id,
+                Name = region.Name,
                 Moisture = region.Moisture,
                 WaterRetention = region.WaterRetention,
                 Temperature = region.Temperature,
@@ -194,6 +195,7 @@ public static class GameStateSerializer
                 .OrderBy(r => r.Id)
                 .Select(r => new RegionSnapshot(
                     r.Id,
+                    r.Name,
                     r.TileCoords.Select(c => new CoordSnapshot(c.Q, c.R)).ToList(),
                     r.Moisture,
                     r.WaterRetention,
@@ -301,7 +303,7 @@ public static class GameStateSerializer
             };
         }
     }
-    private sealed record RegionSnapshot(int Id, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, WaterRetention WaterRetention, TemperatureBand Temperature, BaseBiome BaseBiome, Vegetation Vegetation, string FinalBiomeName);
+    private sealed record RegionSnapshot(int Id, string Name, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, WaterRetention WaterRetention, TemperatureBand Temperature, BaseBiome BaseBiome, Vegetation Vegetation, string FinalBiomeName);
     private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, Vegetation Vegetation, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
     private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, double MovementLeft, List<int> JoinedAgentIds, List<UnitSnapshot> Units);
     private sealed record UnitSnapshot(string TypeId, int Count);

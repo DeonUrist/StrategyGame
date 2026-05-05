@@ -270,6 +270,7 @@ public static partial class MapGenerator
         var region = new RegionState
         {
             Id = regionId,
+            Name = RegionNameGenerator.Generate("Ice Sheet", TemperatureBand.Arctic, regionId),
             Moisture = MoistureLevel.Normal,
             WaterRetention = WaterRetention.Normal,
             Temperature = TemperatureBand.Arctic,
