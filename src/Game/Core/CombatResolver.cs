@@ -29,18 +29,7 @@ public static class CombatResolver
 
     public static int StackStrength(GameState state, StackState stack)
     {
-        // Unit strength comes from data/units.json.
-        // Joined agents can add their flat leadership bonuses while attached.
-        var strength = stack.Units.Sum(u => state.Database.Units[u.TypeId].Strength * u.Count);
-        foreach (var leaderId in stack.JoinedAgentIds)
-        {
-            if (state.Agents.TryGetValue(leaderId, out var leader))
-            {
-                strength += state.Database.Units[leader.TypeId].LeadershipBonus;
-            }
-        }
-
-        return strength;
+        return stack.Units.Sum(u => state.Database.Units[u.TypeId].Strength * u.Count);
     }
 
     private static int DefenseBonus(GameState state, HexCoord coord)

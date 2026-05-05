@@ -54,6 +54,12 @@ public partial class MainGame : Node2D
     private bool _isLogCollapsed;
     private Dictionary<HexCoord, double> _selectedRange = [];
 
+    // Range cache: reuse the last Dijkstra result when the unit and map are unchanged.
+    // IsStack distinguishes stack vs agent IDs (both int, different namespaces).
+    private record struct RangeCacheKey(bool IsStack, int UnitId, HexCoord Coord, double MovementLeft, int MapVersion);
+    private RangeCacheKey? _rangeCacheKey;
+    private Dictionary<HexCoord, double> _cachedRange = [];
+
     public override void _Ready()
     {
         // Godot calls _Ready once when the scene starts.

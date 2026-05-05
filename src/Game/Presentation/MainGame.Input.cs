@@ -63,6 +63,7 @@ public partial class MainGame
         {
             SelectNextPieceOnTile(state, tile, selectableStacks, selectableAgents);
             UpdatePanel(tile);
+            ComputeSelectedRange(state);
             QueueRedraw();
             return;
         }
@@ -91,9 +92,10 @@ public partial class MainGame
         {
             GameRules.TryMoveStack(state, stackId, coord);
             SelectStack(state, selectedStack);
+            UpdatePanel(tile);
+            ComputeSelectedRange(state);
             _gearMenuPanel.Visible = false;
             QueueRedraw();
-            UpdatePanel(tile);
             return;
         }
 
@@ -105,9 +107,10 @@ public partial class MainGame
         {
             GameRules.TryMoveAgent(state, agentId, coord);
             SelectAgent(state, selectedAgent);
+            UpdatePanel(tile);
+            ComputeSelectedRange(state);
             _gearMenuPanel.Visible = false;
             QueueRedraw();
-            UpdatePanel(tile);
         }
     }
 
@@ -149,17 +152,60 @@ public partial class MainGame
     {
         _selectedStackId = stack.Id;
         _selectedAgentId = null;
-        _selectedRange = stack.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer
-            ? GameRules.MovementRange(state, stack.Coord, stack.MovementLeft)
-            : [];
+        _selectedRange = [];
     }
 
     private void SelectAgent(GameState state, AgentState agent)
     {
         _selectedAgentId = agent.Id;
         _selectedStackId = null;
-        _selectedRange = agent.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer
-            ? GameRules.MovementRange(state, agent.Coord, agent.MovementLeft)
-            : [];
+        _selectedRange = [];
+    }
+
+    private void ComputeSelectedRange(GameState state)
+    {
+        RangeCacheKey key;
+
+        if (_selectedStackId is { } stackId && state.Stacks.TryGetValue(stackId, out var stack))
+        {
+            if (!(stack.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer))
+            {
+                _selectedRange = [];
+                return;
+            }
+
+            key = new RangeCacheKey(true, stackId, stack.Coord, stack.MovementLeft, state.MapVersion);
+            if (key == _rangeCacheKey)
+            {
+                _selectedRange = _cachedRange;
+                return;
+            }
+
+            _selectedRange = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
+        }
+        else if (_selectedAgentId is { } agentId && state.Agents.TryGetValue(agentId, out var agent))
+        {
+            if (!(agent.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer))
+            {
+                _selectedRange = [];
+                return;
+            }
+
+            key = new RangeCacheKey(false, agentId, agent.Coord, agent.MovementLeft, state.MapVersion);
+            if (key == _rangeCacheKey)
+            {
+                _selectedRange = _cachedRange;
+                return;
+            }
+
+            _selectedRange = GameRules.MovementRange(state, agent.Coord, agent.MovementLeft);
+        }
+        else
+        {
+            return;
+        }
+
+        _cachedRange = _selectedRange;
+        _rangeCacheKey = key;
     }
 }

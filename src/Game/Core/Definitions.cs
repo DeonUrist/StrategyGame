@@ -4,7 +4,7 @@ namespace StrategyGame.Core;
 // They describe what a thing is in the rules database, not a live instance on
 // the board. Runtime state lives in WorldModels.cs.
 public sealed record ResourceDefinition(string Id, string Name);
-public sealed record UnitDefinition(string Id, string Name, string Kind, int Strength, double Movement, int LeadershipBonus = 0);
+public sealed record UnitDefinition(string Id, string Name, string Kind, int Strength, double Movement);
 public sealed record BuildingDefinition(string Id, string Name, int Level, string? UpgradesTo);
 public sealed record FactionDefinition(string Id, string Name, string Color, bool IsPlayer);
 public sealed record EventDefinition(string Id, string Name, int BaseWeight);

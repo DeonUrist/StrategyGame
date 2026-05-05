@@ -43,6 +43,8 @@ public partial class MainGame
         _newGameRoot.Visible = false;
         _gameRoot.Visible = true;
         ClearSelection();
+        _rangeCacheKey = null;
+        _cachedRange = [];
         _inspectedTileCoord = null;
         _gearMenuPanel.Visible = false;
         _actionMenuPanel.Visible = false;
@@ -219,6 +221,7 @@ public partial class MainGame
             SelectStack(state, stacks[0]);
             _actionMenuPanel.Visible = false;
             UpdatePanel(state.Map.Get(stacks[0].Coord));
+            ComputeSelectedRange(state);
             QueueRedraw();
             return;
         }
@@ -231,6 +234,7 @@ public partial class MainGame
                  SelectStack(state, stack);
                  _actionMenuPanel.Visible = false;
                  UpdatePanel(state.Map.Get(stack.Coord));
+                 ComputeSelectedRange(state);
                  QueueRedraw();
              }))).ToList());
     }

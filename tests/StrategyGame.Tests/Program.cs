@@ -20,6 +20,10 @@ Run("combat removes losing stack", CombatRemovesLosingStack);
 Run("director produces valid AI state", DirectorProducesValidAiState);
 Run("save load preserves game state", SaveLoadPreservesGameState);
 Run("loaded AI turn replays deterministically", LoadedAiTurnReplaysDeterministically);
+Run("movement overspend allows last step", MovementOverspendAllowsLastStep);
+Run("turn cycling advances faction and counts turns", TurnCyclingAdvancesFactionAndCountsTurns);
+Run("combat applies casualties to winner", CombatAppliesCasualtiesToWinner);
+Run("move stack fails for invalid destination", MoveStackFailsForInvalidDestination);
 
 Console.WriteLine("All strategy foundation tests passed.");
 
@@ -389,6 +393,96 @@ void LoadedAiTurnReplaysDeterministically()
     loadedDirector.TakeTurn(loaded, loaded.CurrentFaction.Id);
 
     Assert(GameStateSerializer.ToJson(loaded) == GameStateSerializer.ToJson(original), "loaded AI turn should replay to the same state");
+}
+
+void MovementOverspendAllowsLastStep()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
+
+    // With 0.5 movement left, a unit should still be able to enter a tile
+    // that costs 1.0 — spending the remainder and arriving with 0 left.
+    stack.MovementLeft = 0.5;
+    var range = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
+    var flatNeighbors = state.Map.Neighbors(stack.Coord)
+        .Where(t => TerrainResolver.Resolve(state, t).Passable && GameRules.TileMovementCost(state, t) == 1.0)
+        .ToList();
+    Assert(flatNeighbors.Count > 0, "player starting tile should have at least one flat passable neighbor");
+    Assert(flatNeighbors.All(t => range.ContainsKey(t.Coord)), "unit with 0.5 movement should reach flat neighbors via overspend");
+
+    // With exactly 0 movement, no tile beyond the origin is reachable.
+    stack.MovementLeft = 0;
+    var zeroRange = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
+    Assert(zeroRange.Count == 1 && zeroRange.ContainsKey(stack.Coord), "unit with zero movement should have no reachable tiles beyond its position");
+}
+
+void TurnCyclingAdvancesFactionAndCountsTurns()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var factionCount = state.Factions.Count;
+    var startTurn = state.Turn;
+    Assert(state.CurrentFactionIndex == 0, "game should start with the first faction active");
+
+    // Advance through all but the last faction — turn counter must not change yet.
+    for (var i = 1; i < factionCount; i++)
+    {
+        GameRules.AdvanceTurn(state);
+        Assert(state.CurrentFactionIndex == i, $"after {i} advance(s), faction index should be {i}");
+        Assert(state.Turn == startTurn, "turn counter should not increment mid-cycle");
+    }
+
+    // Final advance wraps back to faction 0 and increments the world turn.
+    GameRules.AdvanceTurn(state);
+    Assert(state.CurrentFactionIndex == 0, "faction index should wrap back to 0 after all factions played");
+    Assert(state.Turn == startTurn + 1, "turn counter should increment once every faction has played");
+
+    // A second full cycle increments again.
+    for (var i = 0; i < factionCount; i++)
+    {
+        GameRules.AdvanceTurn(state);
+    }
+    Assert(state.Turn == startTurn + 2, "turn counter should increment once per full faction cycle");
+}
+
+void CombatAppliesCasualtiesToWinner()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var attacker = state.StacksForFaction("player").First();
+    var defender = state.StacksForFaction("ember").First();
+
+    attacker.Units.Clear();
+    attacker.Units.Add(new UnitInstance { TypeId = "spearmen", Count = 20 });
+    defender.Units.Clear();
+    defender.Units.Add(new UnitInstance { TypeId = "militia", Count = 1 });
+
+    var countBefore = attacker.Units[0].Count;
+    CombatResolver.Resolve(state, attacker, defender);
+
+    Assert(state.Stacks.ContainsKey(attacker.Id), "dominant attacker should survive");
+    Assert(!state.Stacks.ContainsKey(defender.Id), "weak defender should be removed");
+    var expected = Math.Max(1, (int)Math.Round(countBefore * 0.75));
+    Assert(attacker.Units[0].Count == expected, $"winner should lose 25% of its units: {countBefore} → {expected}");
+}
+
+void MoveStackFailsForInvalidDestination()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var originalCoord = stack.Coord;
+
+    // Ocean is impassable — move should be rejected.
+    var oceanCoord = state.Map.Tiles.First(t => t.Elevation == Elevation.Ocean).Coord;
+    Assert(!GameRules.TryMoveStack(state, stack.Id, oceanCoord), "move to ocean tile should fail");
+    Assert(stack.Coord == originalCoord, "failed move should not change stack position");
+    Assert(state.Map.Get(originalCoord).StackIds.Contains(stack.Id), "tile index should be unchanged after failed ocean move");
+
+    // Destination too far to reach in one turn should also fail.
+    var farCoord = state.Map.Tiles
+        .Where(t => TerrainResolver.Resolve(state, t).Passable)
+        .OrderByDescending(t => t.Coord.DistanceTo(originalCoord))
+        .First().Coord;
+    Assert(!GameRules.TryMoveStack(state, stack.Id, farCoord), "move beyond movement range should fail");
+    Assert(stack.Coord == originalCoord, "failed out-of-range move should not change stack position");
 }
 
 void Run(string name, Action test)
