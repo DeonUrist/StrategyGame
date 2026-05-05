@@ -179,6 +179,7 @@ void SandboxHasOceanBorderAndRegionClimateBands()
     Assert(DesertRegionsAreBroad(state), "default world desert tiles should concentrate into broad regions when deserts appear");
     Assert(state.Map.Tiles.Where(t => t.Elevation == Elevation.Coast && state.Map.IsCoastline(t)).Any(t => TerrainResolver.Resolve(state, t).Name == "Coast"), "coast elevation should produce coast terrain on outer water bodies");
     Assert(state.Map.Tiles.Where(t => t.Elevation == Elevation.Coast && !state.Map.IsOuterWaterBody(t)).Any(t => TerrainResolver.Resolve(state, t).Name == "Lake"), "inland coast elevation should resolve as lake");
+    Assert(state.Map.Tiles.Where(t => t.Elevation == Elevation.Coast).All(t => t.WaterBodyKind != WaterBodyKind.None), "coast tiles should use cached water-body classification");
     var seaRegionCount = state.Map.Tiles
         .Where(t => TerrainResolver.Resolve(state, t).Name == "Sea")
         .Select(t => t.RegionId)
@@ -375,6 +376,7 @@ void SaveLoadPreservesGameState()
 
     Assert(GameStateSerializer.ToJson(loaded) == json, "save/load round trip should preserve serialized state");
     Assert(loaded.WorldGeneration.ElevationVariance == state.WorldGeneration.ElevationVariance, "loaded state should retain world generation settings");
+    Assert(loaded.Map.Tiles.Where(t => t.Elevation == Elevation.Coast).All(t => t.WaterBodyKind != WaterBodyKind.None), "loaded coast tiles should retain water-body classification");
     Assert(loaded.Map.Get(stack.Coord).StackIds.Contains(stack.Id), "loaded map should retain stack tile index");
     Assert(loaded.Stacks[stack.Id].JoinedAgentIds.SequenceEqual([agent.Id]), "loaded stack should retain joined leader");
     Assert(loaded.Agents[agent.Id].JoinedStackId == stack.Id, "loaded agent should retain joined stack");

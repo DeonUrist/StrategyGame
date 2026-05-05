@@ -11,12 +11,19 @@ public static partial class TerrainResolver
 
         if (tile.Elevation == Elevation.Coast)
         {
-            var name = tile.RegionId is { } regionId
-                    && state.Regions.TryGetValue(regionId, out var region)
-                    && region.FinalBiomeName == "Sea"
-                ? "Sea"
-                : state.Map.IsOuterWaterBody(tile) ? "Coast" : "Lake";
-            return new ResolvedTerrain(name, name == "Lake" ? "#4fa7d8" : CoastColor, int.MaxValue, false, 0);
+            var name = tile.WaterBodyKind switch
+            {
+                WaterBodyKind.Sea => "Sea",
+                WaterBodyKind.Lake => "Lake",
+                _ => "Coast"
+            };
+            var color = name switch
+            {
+                "Lake" => "#4fa7d8",
+                "Sea" => "#4f9fd1",
+                _ => CoastColor
+            };
+            return new ResolvedTerrain(name, color, int.MaxValue, false, 0);
         }
 
         return new ResolvedTerrain("Ocean", OceanColor, int.MaxValue, false, 0);

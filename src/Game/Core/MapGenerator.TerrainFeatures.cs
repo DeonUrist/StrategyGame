@@ -434,6 +434,7 @@ public static partial class MapGenerator
             tile.Elevation = Elevation.Coast;
             tile.Moisture = region.Moisture;
             tile.Vegetation = Vegetation.None;
+            tile.WaterBodyKind = WaterBodyKind.Sea;
             tile.ResourceId = null;
             tile.FeatureIds.Clear();
         }
@@ -446,6 +447,59 @@ public static partial class MapGenerator
             if (state.Map.Neighbors(tile.Coord).Any(n => !n.Elevation.IsWaterLike()))
             {
                 tile.Elevation = Elevation.Coast;
+            }
+        }
+    }
+
+    private static void ClassifyWaterBodies(GameState state)
+    {
+        foreach (var tile in state.Map.Tiles)
+        {
+            tile.WaterBodyKind = WaterBodyKind.None;
+        }
+
+        var visited = new HashSet<HexCoord>();
+        foreach (var start in state.Map.Tiles.Where(t => t.Elevation.IsLiquidWater()))
+        {
+            if (!visited.Add(start.Coord))
+            {
+                continue;
+            }
+
+            var body = new List<HexTile>();
+            var queue = new Queue<HexTile>();
+            queue.Enqueue(start);
+            var touchesOuterEdge = false;
+
+            while (queue.Count > 0)
+            {
+                var tile = queue.Dequeue();
+                body.Add(tile);
+
+                if (IsMapEdgeTile(tile, NormalizeMapSize(state.WorldGeneration.MapSize)))
+                {
+                    touchesOuterEdge = true;
+                }
+
+                foreach (var neighbor in state.Map.Neighbors(tile.Coord))
+                {
+                    if (!neighbor.Elevation.IsLiquidWater() || !visited.Add(neighbor.Coord))
+                    {
+                        continue;
+                    }
+
+                    queue.Enqueue(neighbor);
+                }
+            }
+
+            var bodyKind = touchesOuterEdge ? WaterBodyKind.Outer : WaterBodyKind.Lake;
+            foreach (var tile in body)
+            {
+                tile.WaterBodyKind = tile.RegionId is { } regionId
+                                      && state.Regions.TryGetValue(regionId, out var region)
+                                      && region.FinalBiomeName == "Sea"
+                    ? WaterBodyKind.Sea
+                    : bodyKind;
             }
         }
     }
@@ -498,6 +552,7 @@ public static partial class MapGenerator
                 tile.RegionId = null;
                 tile.Moisture = MoistureLevel.Normal;
                 tile.Vegetation = Vegetation.None;
+                tile.WaterBodyKind = WaterBodyKind.None;
                 tile.FeatureIds.Clear();
 
                 if (depth == 2)

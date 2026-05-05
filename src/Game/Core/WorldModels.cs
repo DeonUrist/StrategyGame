@@ -11,6 +11,7 @@ public sealed class HexTile
     // elevation can locally reduce them.
     public MoistureLevel Moisture { get; set; }
     public Vegetation Vegetation { get; set; }
+    public WaterBodyKind WaterBodyKind { get; set; }
     public int? RegionId { get; set; }
     public List<string> FeatureIds { get; } = [];
     public string? ResourceId { get; set; }
@@ -56,6 +57,11 @@ public sealed class HexMap
         if (!tile.Elevation.IsLiquidWater())
         {
             return false;
+        }
+
+        if (tile.WaterBodyKind != WaterBodyKind.None)
+        {
+            return tile.WaterBodyKind == WaterBodyKind.Outer;
         }
 
         var visited = new HashSet<HexCoord>();

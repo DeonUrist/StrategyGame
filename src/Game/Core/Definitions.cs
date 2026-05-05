@@ -20,6 +20,14 @@ public enum Elevation
     Peaks
 }
 
+public enum WaterBodyKind
+{
+    None,
+    Outer,
+    Lake,
+    Sea
+}
+
 public static class ElevationExtensions
 {
     public static bool IsWaterLike(this Elevation elevation)

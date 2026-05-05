@@ -68,9 +68,13 @@ public partial class MainGame
             return;
         }
 
+        var hadSelection = _selectedStackId is not null || _selectedAgentId is not null || _selectedRange.Count > 0;
         ClearSelection();
         UpdatePanel(tile);
-        QueueRedraw();
+        if (hadSelection)
+        {
+            QueueRedraw();
+        }
     }
 
     private void HandleHexRightClick(HexCoord coord)

@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 8;
+    private const int CurrentVersion = 9;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -63,6 +63,7 @@ public static class GameStateSerializer
                 Elevation = tile.Elevation,
                 Moisture = tile.Moisture,
                 Vegetation = tile.Vegetation,
+                WaterBodyKind = tile.WaterBodyKind,
                 RegionId = tile.RegionId,
                 ResourceId = tile.ResourceId,
                 CityId = tile.CityId
@@ -211,6 +212,7 @@ public static class GameStateSerializer
                     t.Elevation,
                     t.Moisture,
                     t.Vegetation,
+                    t.WaterBodyKind,
                     t.RegionId,
                     t.FeatureIds.ToList(),
                     t.ResourceId,
@@ -301,7 +303,7 @@ public static class GameStateSerializer
         }
     }
     private sealed record RegionSnapshot(int Id, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, WaterRetention WaterRetention, TemperatureBand Temperature, BaseBiome BaseBiome, Vegetation Vegetation, string FinalBiomeName);
-    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, Vegetation Vegetation, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
+    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, Vegetation Vegetation, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
     private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, double MovementLeft, List<int> JoinedAgentIds, List<UnitSnapshot> Units);
     private sealed record UnitSnapshot(string TypeId, int Count);
     private sealed record AgentSnapshot(int Id, string FactionId, string TypeId, string Name, int Q, int R, double MovementLeft, int? JoinedStackId);

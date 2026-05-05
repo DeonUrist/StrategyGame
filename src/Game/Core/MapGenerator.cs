@@ -43,10 +43,12 @@ public static partial class MapGenerator
         AddSeas(state, seed, random);
         CarveInlandLakes(state, random);
         ClassifyCoasts(state);
+        ClassifyWaterBodies(state);
         AddElevationFeatures(state, random);
         EnsureNorthernIceSheetLand(state);
         AddMapDetails(state, random);
         ExpandDeepIce(state, seed);
+        ClassifyWaterBodies(state);
         AddStartingPieces(state);
 
         state.AddLog("Sandbox world created.");

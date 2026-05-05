@@ -4,3 +4,6 @@
 .vs/
 bin/
 obj/
+
+# Claude Code local state
+.claude/
