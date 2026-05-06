@@ -19,7 +19,7 @@ public partial class MainGame
         _gameRoot.Visible = false;
         _actionMenuPanel.Visible = false;
         _loadGameButton.Disabled = !File.Exists(_savePath);
-        QueueRedraw();
+        RequestFullRedraw();
     }
 
     private void ShowNewGameSetup()
@@ -33,7 +33,7 @@ public partial class MainGame
         _newGameRoot.Visible = true;
         _gameRoot.Visible = false;
         _actionMenuPanel.Visible = false;
-        QueueRedraw();
+        RequestFullRedraw();
     }
 
     private void ShowGame()
@@ -53,7 +53,7 @@ public partial class MainGame
         _exitConfirmOverlay.Visible = false;
         SetLogCollapsed(_isLogCollapsed);
         UpdatePanel();
-        QueueRedraw();
+        RequestFullRedraw();
     }
 
     private void CreateNewGameFromSetup()
@@ -162,7 +162,7 @@ public partial class MainGame
         }
 
         UpdatePanel();
-        QueueRedraw();
+        RequestDynamicRedraw();
     }
 
     private void DetachSelectedLeader()
@@ -194,14 +194,14 @@ public partial class MainGame
                         GameRules.TryDetachAgentFromStack(state, id);
                         _actionMenuPanel.Visible = false;
                         UpdatePanel(state.Map.Get(stack.Coord));
-                        QueueRedraw();
+                        RequestDynamicRedraw();
                     })))
                     .ToList());
             return;
         }
 
         UpdatePanel(state.Stacks.TryGetValue(stackId, out var updatedStack) ? state.Map.Get(updatedStack.Coord) : null);
-        QueueRedraw();
+        RequestDynamicRedraw();
     }
 
     private void AttachSelectedAgentToArmy()
@@ -234,7 +234,7 @@ public partial class MainGame
             _actionMenuPanel.Visible = false;
             UpdatePanel(state.Map.Get(stacks[0].Coord));
             ComputeSelectedRange(state);
-            QueueRedraw();
+            RequestDynamicRedraw();
             return;
         }
 
@@ -247,7 +247,7 @@ public partial class MainGame
                  _actionMenuPanel.Visible = false;
                  UpdatePanel(state.Map.Get(stack.Coord));
                  ComputeSelectedRange(state);
-                 QueueRedraw();
+                 RequestDynamicRedraw();
              }))).ToList());
     }
 

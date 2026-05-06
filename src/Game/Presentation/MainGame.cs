@@ -75,6 +75,7 @@ public partial class MainGame : Node2D
         _camera = new Camera2D { Enabled = true, Position = new Vector2(470, 340), Zoom = new Vector2(0.9f, 0.9f) };
         AddChild(_camera);
 
+        InitDrawLayers();
         BuildUi();
         ShowMainMenu();
     }

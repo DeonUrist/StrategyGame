@@ -64,7 +64,7 @@ public partial class MainGame
             SelectNextPieceOnTile(state, tile, selectableStacks, selectableAgents);
             UpdatePanel(tile);
             ComputeSelectedRange(state);
-            QueueRedraw();
+            RequestDynamicRedraw();
             return;
         }
 
@@ -73,7 +73,7 @@ public partial class MainGame
         UpdatePanel(tile);
         if (hadSelection)
         {
-            QueueRedraw();
+            RequestDynamicRedraw();
         }
     }
 
@@ -99,7 +99,7 @@ public partial class MainGame
             UpdatePanel(tile);
             ComputeSelectedRange(state);
             _gearMenuPanel.Visible = false;
-            QueueRedraw();
+            RequestDynamicRedraw();
             return;
         }
 
@@ -114,7 +114,7 @@ public partial class MainGame
             UpdatePanel(tile);
             ComputeSelectedRange(state);
             _gearMenuPanel.Visible = false;
-            QueueRedraw();
+            RequestDynamicRedraw();
         }
     }
 
