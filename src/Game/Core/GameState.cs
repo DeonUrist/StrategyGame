@@ -31,7 +31,7 @@ public sealed class GameState
     // Logs are part of state so save/load preserves the player's recent history.
     public void AddLog(string text) => Log.Add(new GameLogEntry { Turn = Turn, Text = text });
 
-    // Incremented whenever tile terrain changes (elevation, moisture, vegetation,
+    // Incremented whenever tile terrain changes (elevation, moisture,
     // features). Presentation uses this to know when cached movement ranges are stale.
     public int MapVersion { get; private set; }
     public void IncrementMapVersion() => MapVersion++;

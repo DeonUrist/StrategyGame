@@ -44,8 +44,8 @@ Godot input event
 |------|------|
 | `HexCoord(Q, R)` | Axial coordinate record; `Neighbors()` and `Distance()` use cube coords |
 | `HexMap` | `Dictionary<HexCoord, HexTile>` with neighbor queries |
-| `HexTile` | Per-cell data: elevation, moisture, vegetation, region ID, resource, city, stacks, agents |
-| `RegionState` | Biome identity (base biome, temperature, moisture, vegetation) for a set of tiles |
+| `HexTile` | Per-cell data: elevation, moisture, region ID, resource, city, stacks, agents |
+| `RegionState` | Biome identity (base biome, temperature, moisture) for a set of tiles |
 | `StackState` | Army at a coord: unit roster, movement budget, joined agent IDs |
 | `AgentState` | Hero/scout: coord, movement budget, optional `JoinedStackId` |
 | `CityState` | Settlement: coord, upgrade chain (Campsite → City Square) |
@@ -68,8 +68,8 @@ Large subsystems are split into partial classes:
 - `TerrainResolver` + 2 partials (movement costs, biome name resolution)
 - `GameRules` split into 5 partials: Movement, Stacks, Agents, Cities, Turns
 - `FactionDirector` + 2 partials (weighted event selection, action execution)
-- `MainGame` split into: Input, Ui, Flow, InfoPanel, Drawing, Drawing.Terrain, HexMath
+- `MainGame` split into: Input, Ui, Flow, InfoPanel, Layers, HexMath
 
 ### Test harness
 
-`tests/StrategyGame.Tests/StrategyGame.Tests.csproj` compiles `src/Game/Core/**/*.cs` directly (no project reference) so it runs without Godot. `Program.cs` contains 22 hand-written assertion tests covering hex math, generation determinism, movement, agents, cities, combat, save/load round-trips, and AI replay. Add new tests as plain methods following the existing `RunTest("name", () => { ... })` pattern.
+`tests/StrategyGame.Tests/StrategyGame.Tests.csproj` compiles `src/Game/Core/**/*.cs` directly (no project reference) so it runs without Godot. `Program.cs` contains hand-written assertion tests covering hex math, generation determinism, movement, agents, cities, combat, save/load round-trips, and AI replay. Add new tests as plain methods following the existing pattern.

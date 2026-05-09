@@ -87,4 +87,4 @@ public enum BaseBiome
 
 // ResolvedTerrain is the final gameplay-facing terrain result after the region
 // biome, elevation, and features are combined.
-public sealed record ResolvedTerrain(string Name, string Color, double MovementCost, bool Passable, int DefenseModifier);
+public sealed record ResolvedTerrain(string Name, double MovementCost, bool Passable, int DefenseModifier);

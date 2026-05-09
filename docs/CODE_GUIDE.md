@@ -24,7 +24,7 @@ Core files live in `src/Game/Core`. They do not use Godot APIs, so they are easi
 - `MapGenerator.StartingPieces.cs`: faction starting cities, army stacks, agents, and start-location fallback.
 - `TerrainResolver.cs`: public terrain resolution entry points for water and saved region biomes.
 - `TerrainResolver.Biomes.cs`: temperature/moisture terrain table and paired terrain variant selection.
-- `TerrainResolver.Stats.cs`: water terrain names, terrain colors, movement costs, and defense modifiers.
+- `TerrainResolver.Stats.cs`: water terrain names, movement costs, and defense modifiers.
 - `GameRules.Movement.cs`: movement cost and pathfinding range.
 - `GameRules.Stacks.cs`: army stack movement and combat entry.
 - `GameRules.Agents.cs`: agent movement, joining armies, and detaching leaders.
@@ -45,8 +45,7 @@ Presentation files live in `src/Game/Presentation`. They connect player input an
 - `MainGame.Ui.cs`: menu and HUD control construction.
 - `MainGame.Flow.cs`: screen switching, new/load/save game flow, end-turn handling, and leader detach command.
 - `MainGame.InfoPanel.cs`: selected-unit, tile, and log text formatting for the HUD.
-- `MainGame.Drawing.cs`: draw-pass order plus map, city, army, and agent drawing.
-- `MainGame.Drawing.Terrain.cs`: terrain ornaments such as trees, hills, mountains, volcanoes, and resource markers.
+- `MainGame.Layers.cs`: sprite layer sync for terrain, features, resources, locations, units, grid, and selection highlights.
 - `MainGame.HexMath.cs`: convert between hex coordinates and Godot pixel positions.
 
 ## Data

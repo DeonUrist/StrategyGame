@@ -50,7 +50,6 @@ public partial class MainGame
     {
         var state = _state ?? throw new InvalidOperationException("No active game.");
         var terrain = TerrainResolver.Resolve(state, tile);
-        var terrainColor = terrain.Color;
         var terrainLabel = TerrainLabel(terrain, tile);
         var featureText = tile.FeatureIds.Count == 0
             ? ""
@@ -66,7 +65,7 @@ public partial class MainGame
             : CityPanelText(state, state.Cities[tile.CityId.Value]);
 
         return $"Tile {tile.Coord.Q}/{tile.Coord.R}"
-             + $"\n{ColorText(terrainLabel, terrainColor)}"
+             + $"\n{Escape(terrainLabel)}"
              + regionText
              + resourceText
              + featureText

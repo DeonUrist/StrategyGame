@@ -2,11 +2,6 @@ namespace StrategyGame.Core;
 
 public static partial class TerrainResolver
 {
-    // Water colors are constants because water bypasses the land biome color
-    // table. Coast water is intentionally brighter for readability.
-    private const string OceanColor = "#2f80c9";
-    private const string CoastColor = "#62b7e8";
-
     public static ResolvedTerrain Resolve(GameState state, HexTile tile)
     {
         if (tile.Elevation.IsWaterLike())
@@ -32,18 +27,16 @@ public static partial class TerrainResolver
         }
 
         var name = ResolveRegionBiome(BaseBiome.Grassland);
-        var color = ColorFor(name);
         var movementCost = MovementCost(name, tile.Elevation, tile.FeatureIds);
         var defense = DefenseModifier(tile.Elevation, tile.FeatureIds);
-        return new ResolvedTerrain(name, color, movementCost, true, defense);
+        return new ResolvedTerrain(name, movementCost, true, defense);
     }
 
     public static ResolvedTerrain ResolveLand(RegionState region, HexTile tile)
     {
         var finalName = region.FinalBiomeName;
-        var color = ColorFor(finalName);
         var movementCost = MovementCost(finalName, tile.Elevation, tile.FeatureIds);
         var defense = DefenseModifier(tile.Elevation, tile.FeatureIds);
-        return new ResolvedTerrain(finalName, color, movementCost, true, defense);
+        return new ResolvedTerrain(finalName, movementCost, true, defense);
     }
 }

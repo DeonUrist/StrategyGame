@@ -60,7 +60,7 @@ public static partial class MapGenerator
     {
         // Base tiles establish the coordinate grid and broad generated climate.
         // Later generation layers mutate these tiles in place with lakes,
-        // mountains, vegetation, resources, and starting pieces.
+        // mountains, resources, and starting pieces.
         var mapSize = NormalizeMapSize(state.WorldGeneration.MapSize);
         for (var row = 0; row < mapSize; row++)
         {

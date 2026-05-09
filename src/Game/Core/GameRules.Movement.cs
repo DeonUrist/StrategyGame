@@ -5,7 +5,7 @@ public static partial class GameRules
     public static double TileMovementCost(GameState state, HexTile tile)
     {
         // Movement uses the resolved terrain rather than raw tile properties so
-        // features, vegetation, and water passability all share one source of
+        // features, elevation, and water passability all share one source of
         // truth with combat and drawing.
         var terrain = TerrainResolver.Resolve(state, tile);
         if (!terrain.Passable)

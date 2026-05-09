@@ -8,7 +8,7 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 
 - Godot 4.6.1 Mono project using C# and `net10.0`.
 - JSON-authored catalogs for units, buildings, factions, and weighted AI events.
-- Code-defined terrain resolver for saved biome regions, elevation, vegetation, coastline, and special feature combinations.
+- Code-defined terrain resolver for saved biome regions, elevation, coastline, and special feature combinations.
 - Seeded 32x32 generated hex island map using axial coordinates.
 - Ocean border, small inland lakes, region-edge hills, mountains, peaks, volcano features, saved biome regions, north/south temperature bands, moisture, and explicit terrain-variant rolls.
 - Ground and water terrain, terrain movement costs, terrain defense modifiers, resources, cities, armies, and agents.
@@ -36,7 +36,7 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 ## Deliberate Placeholders
 
 - Map generation is simple and deterministic, not final worldgen.
-- Visuals are drawn shapes and text, not tileset art.
+- Visuals are rendered with sprite layers plus lightweight grid and selection overlays.
 - Combat is one-step auto-resolve with simple strength math.
 - City economy, production costs, ownership pressure, diplomacy, fog of war, and tactical battles are not implemented yet.
 - AI is a weighted director prototype, not a full planner.
@@ -48,4 +48,4 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 2. Add explicit action objects/results so player and AI use the same command pipeline.
 3. Add city production and building upgrade costs.
 4. Add fog of war and faction knowledge state.
-5. Replace placeholder drawing with a tileset or sprite layer after rules stabilize.
+5. Split presentation into smaller map-view, selection-controller, and HUD classes as the sprite layers grow.

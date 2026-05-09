@@ -176,7 +176,7 @@ public static partial class MapGenerator
     private static void AddMapDetails(GameState state, Random random)
     {
         // Details are lower-frequency decorations placed after major terrain is
-        // settled. They depend on final-ish terrain, so they run after vegetation
+        // settled. They depend on final-ish terrain, so they run after region
         // and elevation changes.
         foreach (var tile in state.Map.Tiles)
         {

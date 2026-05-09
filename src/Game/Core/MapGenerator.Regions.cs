@@ -59,7 +59,6 @@ public static partial class MapGenerator
         }
 
         EnsurePolarIceCoverage(state, centers);
-        RebalanceDesertRegions(state, centers, seed);
 
         foreach (var tile in land)
         {
@@ -164,13 +163,6 @@ public static partial class MapGenerator
             region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome);
             region.Name = RegionNameGenerator.Generate(region.FinalBiomeName, region.Temperature, region.Id);
         }
-    }
-
-    private static void RebalanceDesertRegions(GameState state, List<HexTile> centers, int seed)
-    {
-        // Deserts are now controlled directly by the dry tropical row and the
-        // Desert/Badlands slider. This hook remains to keep generation order
-        // stable while making the old drainage rebalance a no-op.
     }
 
     private static double EffectiveRegionDistance(HexCoord tile, HexCoord center, RegionState region)
