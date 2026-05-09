@@ -8,6 +8,8 @@ var tests = new (string Name, Action Test)[]
     ("hex distance and neighbors", HexDistanceAndNeighbors),
     ("database loads required catalogs", DatabaseLoadsRequiredCatalogs),
     ("terrain resolver applies region biome tables", TerrainResolverAppliesRegionBiomeTables),
+    ("terrain movement costs use terrain and elevation", TerrainMovementCostsUseTerrainAndElevation),
+    ("terrain variant sliders control generated pairs", TerrainVariantSlidersControlGeneratedPairs),
     ("sandbox respects custom map size", SandboxRespectsCustomMapSize),
     ("sandbox generation is deterministic", SandboxGenerationIsDeterministic),
     ("sandbox has ocean border and region climate bands", SandboxHasOceanBorderAndRegionClimateBands),
@@ -62,37 +64,75 @@ void TerrainResolverAppliesRegionBiomeTables()
     var oceanTile = new HexTile { Coord = new HexCoord(0, 0), Elevation = Elevation.Ocean };
     var coastTile = new HexTile { Coord = new HexCoord(1, 0), Elevation = Elevation.Coast };
     var deepIceTile = new HexTile { Coord = new HexCoord(2, 0), Elevation = Elevation.DeepIce };
-    Assert(TerrainResolver.PickBaseBiome(MoistureLevel.Dry, WaterRetention.Draining) == BaseBiome.Desert, "dry/draining should pick Desert");
-    Assert(TerrainResolver.PickBaseBiome(MoistureLevel.Dry, WaterRetention.Draining, TemperatureBand.Tropical) == BaseBiome.Desert, "tropical dry/draining should stay Desert");
-    Assert(TerrainResolver.PickBaseBiome(MoistureLevel.Dry, WaterRetention.Draining, TemperatureBand.Temperate) == BaseBiome.Dryland, "temperate dry/draining should become Dryland");
-    Assert(TerrainResolver.PickBaseBiome(MoistureLevel.Dry, WaterRetention.Draining, TemperatureBand.Subarctic) == BaseBiome.Dryland, "subarctic dry/draining should become Dryland");
-    Assert(TerrainResolver.PickBaseBiome(MoistureLevel.Normal, WaterRetention.Holding) == BaseBiome.Floodplain, "normal/holding should pick Floodplain");
-    Assert(TerrainResolver.PickBaseBiome(MoistureLevel.Wet, WaterRetention.Holding) == BaseBiome.Swamp, "wet/holding should pick Swamp");
-    Assert(ResolveName(BaseBiome.Plain, TemperatureBand.Tropical, Vegetation.Lush) == "Jungle", "tropical/lush plain should become Jungle");
-    Assert(ResolveName(BaseBiome.Plain, TemperatureBand.Subtropical, Vegetation.Lush) == "Rainforest", "subtropical/lush plain should become Rainforest");
-    Assert(ResolveName(BaseBiome.Wetland, TemperatureBand.Subtropical, Vegetation.Lush) == "Rainforest", "subtropical/lush wetland should become Rainforest");
-    Assert(ResolveName(BaseBiome.Swamp, TemperatureBand.Subtropical, Vegetation.Lush) == "Rainforest", "subtropical/lush swamp should become Rainforest");
-    Assert(ResolveName(BaseBiome.Plain, TemperatureBand.Subarctic, Vegetation.Lush) == "Taiga", "subarctic/lush plain should become Taiga");
-    Assert(ResolveName(BaseBiome.Dryland, TemperatureBand.Temperate, Vegetation.Sparse) == "Shrubland", "temperate sparse dryland should become Shrubland");
-    Assert(ResolveName(BaseBiome.Swamp, TemperatureBand.Temperate, Vegetation.Lush) == "Forest", "temperate lush swamp should become Forest");
-    Assert(ResolveName(BaseBiome.Floodplain, TemperatureBand.Temperate, Vegetation.None) == "Grassland", "temperate floodplain without vegetation should become Grassland");
-    Assert(ResolveName(BaseBiome.Floodplain, TemperatureBand.Temperate, Vegetation.Sparse) == "Grassland", "temperate sparse floodplain should become Grassland");
-    Assert(ResolveName(BaseBiome.Wasteland, TemperatureBand.Temperate, Vegetation.None) == "Steppe", "temperate wasteland should become Steppe");
-    Assert(ResolveName(BaseBiome.Wasteland, TemperatureBand.Subarctic, Vegetation.None) == "Tundra", "subarctic wasteland should become Tundra");
-    Assert(ResolveName(BaseBiome.Wasteland, TemperatureBand.Arctic, Vegetation.None) == "Ice Sheet", "arctic wasteland should become Ice Sheet");
-    Assert(ResolveName(BaseBiome.Badlands, TemperatureBand.Temperate, Vegetation.Sparse) == "Badlands", "sparse badlands should stay Badlands");
-    Assert(ResolveName(BaseBiome.Barrens, TemperatureBand.Temperate, Vegetation.Sparse) == "Shrubland", "temperate sparse barrens should merge into Shrubland");
-    Assert(ResolveName(BaseBiome.Barrens, TemperatureBand.Temperate, Vegetation.None) == "Wasteland", "temperate barrens without vegetation should merge into Wasteland");
-    Assert(ResolveName(BaseBiome.Barrens, TemperatureBand.Subarctic, Vegetation.Sparse) == "Tundra", "subarctic barrens should merge into Tundra");
-    Assert(TerrainResolver.ClampVegetation(BaseBiome.Desert, TemperatureBand.Tropical, Vegetation.Lush) == Vegetation.None, "desert should clamp vegetation to none");
-    Assert(TerrainResolver.ClampVegetation(BaseBiome.Badlands, TemperatureBand.Temperate, Vegetation.Lush) == Vegetation.Sparse, "badlands should clamp vegetation to sparse");
-    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.Desert, TemperatureBand.Arctic, Vegetation.None) == "Ice Sheet", "ice sheet should not receive a climate prefix");
-    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.Swamp, TemperatureBand.Subtropical, Vegetation.Lush) == "Rainforest", "rainforest should not receive a climate prefix");
-    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.Wasteland, TemperatureBand.Temperate, Vegetation.None) == "Steppe", "steppe should not receive a climate prefix");
+    Assert(Pick(MoistureLevel.Dry, TemperatureBand.Arctic) == BaseBiome.IceSheet, "arctic dry should pick Ice Sheet");
+    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Arctic) == BaseBiome.IceSheet, "arctic normal should pick Ice Sheet");
+    Assert(Pick(MoistureLevel.Wet, TemperatureBand.Arctic) == BaseBiome.IceSheet, "arctic wet should pick Ice Sheet");
+    Assert(Pick(MoistureLevel.Dry, TemperatureBand.Subarctic) == BaseBiome.Tundra, "subarctic dry should pick Tundra");
+    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Subarctic) == BaseBiome.Tundra, "subarctic normal should pick Tundra");
+    Assert(Pick(MoistureLevel.Wet, TemperatureBand.Subarctic) == BaseBiome.Taiga, "subarctic wet should pick Taiga");
+    Assert(Pick(MoistureLevel.Wet, TemperatureBand.Temperate) == BaseBiome.Swamp, "temperate wet should pick Swamp");
+    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Tropical) == BaseBiome.Prairie, "tropical normal should pick Prairie");
+    Assert(Pick(MoistureLevel.Wet, TemperatureBand.Tropical) == BaseBiome.Jungle, "tropical wet should pick Jungle");
+    Assert(Pick(MoistureLevel.Dry, TemperatureBand.Temperate, grasslandShrubland: 0) == BaseBiome.Grassland, "0 grassland/shrubland bias should pick Grassland");
+    Assert(Pick(MoistureLevel.Dry, TemperatureBand.Temperate, grasslandShrubland: 100) == BaseBiome.Shrubland, "100 grassland/shrubland bias should pick Shrubland");
+    Assert(Pick(MoistureLevel.Dry, TemperatureBand.Tropical, desertBadlands: 0) == BaseBiome.Desert, "0 desert/badlands bias should pick Desert");
+    Assert(Pick(MoistureLevel.Dry, TemperatureBand.Tropical, desertBadlands: 100) == BaseBiome.Badlands, "100 desert/badlands bias should pick Badlands");
+    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Temperate, coniferBroadleaf: 0) == BaseBiome.ConiferForest, "0 forest bias should pick Conifer Forest");
+    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Temperate, coniferBroadleaf: 100) == BaseBiome.BroadleafForest, "100 forest bias should pick Broadleaf Forest");
+    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.IceSheet) == "Ice Sheet", "ice sheet name should have a space");
+    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.ConiferForest) == "Conifer Forest", "conifer forest name should have a space");
+    Assert(TerrainResolver.ResolveRegionBiome(BaseBiome.BroadleafForest) == "Broadleaf Forest", "broadleaf forest name should have a space");
     Assert(TerrainResolver.Resolve(oceanTile).Name == "Ocean", "ocean elevation should resolve to Ocean");
     Assert(TerrainResolver.Resolve(coastTile).Name == "Coast", "coast elevation should resolve to Coast without map context");
     Assert(TerrainResolver.Resolve(deepIceTile).Name == "Ocean Ice Sheet", "deep ice should resolve to ocean ice sheet");
     Assert(TerrainResolver.Resolve(deepIceTile).Passable, "deep ice should be land-passable");
+
+    static BaseBiome Pick(MoistureLevel moisture, TemperatureBand temperature, int grasslandShrubland = 0, int desertBadlands = 0, int coniferBroadleaf = 0)
+    {
+        return TerrainResolver.PickBaseBiome(moisture, temperature, grasslandShrubland, desertBadlands, coniferBroadleaf);
+    }
+}
+
+void TerrainMovementCostsUseTerrainAndElevation()
+{
+    Assert(Cost("Grassland") == 1.0, "flat grassland should cost 1.0");
+    Assert(Cost("Shrubland") == 1.0, "flat shrubland should cost 1.0");
+    Assert(Cost("Prairie") == 1.0, "flat prairie should cost 1.0");
+    Assert(Cost("Desert") == 1.5, "flat desert should cost 1.5");
+    Assert(Cost("Tundra") == 1.5, "flat tundra should cost 1.5");
+    Assert(Cost("Badlands") == 1.5, "flat badlands should cost 1.5");
+    Assert(Cost("Taiga") == 1.5, "flat taiga should cost 1.5");
+    Assert(Cost("Conifer Forest") == 1.5, "flat conifer forest should cost 1.5");
+    Assert(Cost("Broadleaf Forest") == 1.5, "flat broadleaf forest should cost 1.5");
+    Assert(Cost("Jungle") == 1.5, "flat jungle should cost 1.5");
+    Assert(Cost("Swamp") == 2.0, "flat swamp should stack bad and forested surcharges");
+    Assert(Cost("Ice Sheet") == 2.0, "flat ice sheet should cost 2.0");
+    Assert(Cost("Grassland", Elevation.Hills) == 1.5, "hills should add 0.5");
+    Assert(Cost("Grassland", Elevation.Mountains) == 2.0, "mountains should add 1.0");
+    Assert(Cost("Grassland", Elevation.Peaks) == 2.0, "peaks should add 1.0");
+    Assert(Cost("Swamp", Elevation.Hills) == 2.5, "swamp hills should combine terrain and elevation cost");
+
+    static double Cost(string terrainName, Elevation elevation = Elevation.Flat)
+    {
+        var region = new RegionState
+        {
+            Id = 1,
+            Name = "Test",
+            Moisture = MoistureLevel.Normal,
+            Temperature = TemperatureBand.Temperate,
+            BaseBiome = BaseBiome.Grassland,
+            FinalBiomeName = terrainName
+        };
+        var tile = new HexTile
+        {
+            Coord = new HexCoord(0, 0),
+            Elevation = elevation,
+            Moisture = MoistureLevel.Normal,
+            RegionId = 1
+        };
+
+        return TerrainResolver.ResolveLand(region, tile).MovementCost;
+    }
 }
 
 void SandboxRespectsCustomMapSize()
@@ -104,6 +144,33 @@ void SandboxRespectsCustomMapSize()
     var noSea = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings { MaxSeaNumber = 0 });
     Assert(noSea.WorldGeneration.MaxSeaNumber == 0, "state should retain requested max sea number");
     Assert(noSea.Map.Tiles.All(t => TerrainResolver.Resolve(noSea, t).Name != "Sea"), "max sea number zero should generate no seas");
+}
+
+void TerrainVariantSlidersControlGeneratedPairs()
+{
+    var first = new WorldGenerationSettings
+    {
+        GrasslandShrublandBias = 0,
+        DesertBadlandsBias = 0,
+        ConiferBroadleafForestBias = 0
+    };
+    var second = new WorldGenerationSettings
+    {
+        GrasslandShrublandBias = 100,
+        DesertBadlandsBias = 100,
+        ConiferBroadleafForestBias = 100
+    };
+    var firstState = MapGenerator.CreateSandbox(database, 42, first);
+    var secondState = MapGenerator.CreateSandbox(database, 42, second);
+
+    Assert(firstState.Regions.Values.Where(IsLandRegion).Where(r => r.Temperature == TemperatureBand.Temperate && r.Moisture == MoistureLevel.Dry).All(r => r.FinalBiomeName == "Grassland"), "0 grassland/shrubland bias should generate Grassland for dry temperate regions");
+    Assert(secondState.Regions.Values.Where(IsLandRegion).Where(r => r.Temperature == TemperatureBand.Temperate && r.Moisture == MoistureLevel.Dry).All(r => r.FinalBiomeName == "Shrubland"), "100 grassland/shrubland bias should generate Shrubland for dry temperate regions");
+    Assert(firstState.Regions.Values.Where(IsLandRegion).Where(r => r.Temperature == TemperatureBand.Tropical && r.Moisture == MoistureLevel.Dry).All(r => r.FinalBiomeName == "Desert"), "0 desert/badlands bias should generate Desert for dry tropical regions");
+    Assert(secondState.Regions.Values.Where(IsLandRegion).Where(r => r.Temperature == TemperatureBand.Tropical && r.Moisture == MoistureLevel.Dry).All(r => r.FinalBiomeName == "Badlands"), "100 desert/badlands bias should generate Badlands for dry tropical regions");
+    Assert(firstState.Regions.Values.Where(IsLandRegion).Where(r => r.Temperature == TemperatureBand.Temperate && r.Moisture == MoistureLevel.Normal).All(r => r.FinalBiomeName == "Conifer Forest"), "0 conifer/broadleaf bias should generate Conifer Forest for normal temperate regions");
+    Assert(secondState.Regions.Values.Where(IsLandRegion).Where(r => r.Temperature == TemperatureBand.Temperate && r.Moisture == MoistureLevel.Normal).All(r => r.FinalBiomeName == "Broadleaf Forest"), "100 conifer/broadleaf bias should generate Broadleaf Forest for normal temperate regions");
+
+    static bool IsLandRegion(RegionState region) => region.FinalBiomeName != "Sea";
 }
 
 void SandboxGenerationIsDeterministic()
@@ -118,7 +185,6 @@ void SandboxGenerationIsDeterministic()
         Assert(firstTile.RegionId == secondTile.RegionId, $"region mismatch at {firstTile.Coord}");
         Assert(firstTile.Elevation == secondTile.Elevation, $"elevation mismatch at {firstTile.Coord}");
         Assert(firstTile.Moisture == secondTile.Moisture, $"moisture mismatch at {firstTile.Coord}");
-        Assert(firstTile.Vegetation == secondTile.Vegetation, $"vegetation mismatch at {firstTile.Coord}");
         Assert(firstTile.FeatureIds.SequenceEqual(secondTile.FeatureIds), $"feature mismatch at {firstTile.Coord}");
         Assert(firstTile.ResourceId == secondTile.ResourceId, $"resource mismatch at {firstTile.Coord}");
     }
@@ -127,10 +193,8 @@ void SandboxGenerationIsDeterministic()
     {
         var secondRegion = second.Regions[firstRegion.Id];
         Assert(firstRegion.Moisture == secondRegion.Moisture, $"region moisture mismatch for {firstRegion.Id}");
-        Assert(firstRegion.WaterRetention == secondRegion.WaterRetention, $"region retention mismatch for {firstRegion.Id}");
         Assert(firstRegion.Temperature == secondRegion.Temperature, $"region temperature mismatch for {firstRegion.Id}");
         Assert(firstRegion.BaseBiome == secondRegion.BaseBiome, $"region biome mismatch for {firstRegion.Id}");
-        Assert(firstRegion.Vegetation == secondRegion.Vegetation, $"region vegetation mismatch for {firstRegion.Id}");
         Assert(firstRegion.FinalBiomeName == secondRegion.FinalBiomeName, $"region final biome mismatch for {firstRegion.Id}");
         Assert(firstRegion.TileCoords.SequenceEqual(secondRegion.TileCoords), $"region tiles mismatch for {firstRegion.Id}");
     }
@@ -163,28 +227,24 @@ void SandboxHasOceanBorderAndRegionClimateBands()
     Assert(state.Regions.Values.All(r => r.TileCoords.Count > 0), "every region should own at least one tile");
     Assert(state.Regions.Values.Select(r => r.Temperature).Distinct().Count() >= 3, "regions should contain multiple temperature bands");
     Assert(state.Regions.Values.Select(r => r.Moisture).Distinct().Count() >= 2, "regions should contain multiple moisture levels");
-    Assert(state.Regions.Values.Select(r => r.WaterRetention).Distinct().Count() >= 2, "regions should contain multiple water-retention levels");
     Assert(land.Any(t => t.Elevation == Elevation.Hills), "island should contain hills");
     Assert(land.Any(t => t.Elevation == Elevation.Mountains), "island should contain mountains");
     Assert(land.Any(t => t.Elevation == Elevation.Peaks), "island should contain peaks");
-    Assert(land.Where(t => t.Coord.R >= mapSize * 3 / 4).Any(t => state.Regions[t.RegionId!.Value].Temperature is TemperatureBand.Tropical or TemperatureBand.Subtropical), "southern land should trend tropical or subtropical");
+    Assert(land.Where(t => t.Coord.R >= mapSize * 3 / 4).Any(t => state.Regions[t.RegionId!.Value].Temperature == TemperatureBand.Tropical), "southern land should trend tropical");
     Assert(land.Where(t => t.Coord.R <= mapSize / 4).Any(t => state.Regions[t.RegionId!.Value].Temperature is TemperatureBand.Arctic or TemperatureBand.Subarctic), "northern land should trend arctic or subarctic");
     Assert(land.All(t => TerrainResolver.Resolve(state, t).Name.Length > 0), "every land tile should resolve to a named terrain");
-    Assert(land.All(t => TerrainResolver.Resolve(state, t).Name != "Temperate Desert"), "temperate desert should be impossible after temperature-aware base biome adjustment");
+    Assert(land.All(t => IsAllowedLandTerrain(TerrainResolver.Resolve(state, t).Name)), "every land tile should resolve to an approved simplified terrain");
+    var landRegions = state.Regions.Values.Where(r => r.FinalBiomeName != "Sea").ToList();
+    Assert(landRegions.All(r => r.Temperature != TemperatureBand.Tropical || r.Moisture != MoistureLevel.Dry || r.FinalBiomeName is "Desert" or "Badlands"), "dry tropical regions should resolve to desert or badlands");
+    Assert(landRegions.All(r => r.Temperature != TemperatureBand.Temperate || r.Moisture != MoistureLevel.Dry || r.FinalBiomeName is "Grassland" or "Shrubland"), "dry temperate regions should resolve to grassland or shrubland");
+    Assert(landRegions.All(r => r.Temperature != TemperatureBand.Temperate || r.Moisture != MoistureLevel.Normal || r.FinalBiomeName is "Conifer Forest" or "Broadleaf Forest"), "normal temperate regions should resolve to a forest variant");
     Assert(land.Any(t => TerrainResolver.Resolve(state, t).Name.Contains("Jungle", StringComparison.OrdinalIgnoreCase)), "larger world should expose at least one jungle tile for seed 42");
-    Assert(land.Any(t => TerrainResolver.Resolve(state, t).Name.Contains("Rainforest", StringComparison.OrdinalIgnoreCase)), "larger world should expose at least one rainforest tile for seed 42");
     Assert(land.Any(t => TerrainResolver.Resolve(state, t).Name.Contains("Taiga", StringComparison.OrdinalIgnoreCase)), "larger world should expose at least one taiga tile for seed 42");
     Assert(land.Any(t => TerrainResolver.Resolve(state, t).Name == "Ice Sheet"), "default world should expose at least one ice sheet tile for seed 42");
     Assert(state.Map.Tiles.Where(t => !t.Elevation.IsWaterLike() && t.Coord.R <= mapSize / 4).Any(t => TerrainResolver.Resolve(state, t).Name == "Ice Sheet"), "north part of the island should always contain a land ice sheet");
     Assert(state.Map.Tiles.Any(t => t.Elevation == Elevation.DeepIce), "generated polar ice should expand onto nearby ocean as deep ice");
     Assert(state.Map.Tiles.Where(t => t.Elevation == Elevation.DeepIce).All(t => !IsMapEdge(t)), "deep ice should not consume the outer ocean border");
     Assert(state.Map.Tiles.Where(t => TerrainResolver.Resolve(state, t).Name == "Ocean Ice Sheet").All(t => state.Map.Neighbors(t.Coord).Any(n => TerrainResolver.Resolve(state, n).Name is "Ice Sheet" or "Ocean Ice Sheet")), "ocean ice sheet should stay attached to coastal polar ice");
-    Assert(land.All(t => !StartsWithTemperature(TerrainResolver.Resolve(state, t).Name)), "land terrain names should not include climate prefixes");
-    Assert(land.All(t => TerrainResolver.Resolve(state, t).Name != "Thickets"), "thickets should not appear as a final terrain name");
-    Assert(land.All(t => TerrainResolver.Resolve(state, t).Name != "Barrens"), "barrens should not appear as a final terrain name");
-    Assert(land.All(t => TerrainResolver.Resolve(state, t).Name != "Bog"), "bog should not appear as a final terrain name");
-    Assert(land.All(t => t.Vegetation == TerrainResolver.ClampTileVegetation(state.Regions[t.RegionId!.Value], t)), "every land tile should store vegetation allowed by its final biome inputs");
-    Assert(land.Where(t => TerrainResolver.Resolve(state, t).Name == "Ice Sheet").All(t => t.Vegetation == Vegetation.None), "ice sheet tiles should not keep vegetation");
     Assert(DesertRegionsAreBroad(state), "default world desert tiles should concentrate into broad regions when deserts appear");
     Assert(state.Map.Tiles.Where(t => t.Elevation == Elevation.Coast && state.Map.IsCoastline(t)).Any(t => TerrainResolver.Resolve(state, t).Name == "Coast"), "coast elevation should produce coast terrain on outer water bodies");
     Assert(state.Map.Tiles.Where(t => t.Elevation == Elevation.Coast && !state.Map.IsOuterWaterBody(t)).Any(t => TerrainResolver.Resolve(state, t).Name == "Lake"), "inland coast elevation should resolve as lake");
@@ -208,7 +268,10 @@ void SandboxHasInlandLakesAndElevationFeatures()
     var hills = state.Map.Tiles.Where(t => t.Elevation == Elevation.Hills).ToList();
     var mountains = state.Map.Tiles.Where(t => t.Elevation == Elevation.Mountains).ToList();
     var rugged = state.Map.Tiles.Where(t => t.Elevation is Elevation.Mountains or Elevation.Peaks).ToList();
-    var forested = state.Map.Tiles.Where(t => t.Vegetation == Vegetation.Lush).ToList();
+    var elevated = state.Map.Tiles
+        .Where(t => t.Elevation is Elevation.Hills or Elevation.Mountains or Elevation.Peaks)
+        .Where(t => t.RegionId is not null)
+        .ToList();
 
     Assert(inlandWater.Count >= 4, "map should contain small inland lake/coastline water");
     Assert(hills.Count > 0, "elevation generation should include hills");
@@ -217,12 +280,11 @@ void SandboxHasInlandLakesAndElevationFeatures()
     Assert(peaks.Count < mountains.Count, "peaks should be fewer than mountains");
     Assert(mountains.All(tile => state.Map.Tiles.Any(other => other.Elevation == Elevation.Hills && other.Coord.DistanceTo(tile.Coord) <= 2)), "every mountain should have hills close by");
     Assert(peaks.All(tile => state.Map.Neighbors(tile.Coord).Any(n => n.Elevation == Elevation.Mountains)), "every peak should neighbor a mountain");
-    Assert(peaks.All(tile => !TerrainResolver.Resolve(state, tile).Name.Contains("Swamp", StringComparison.OrdinalIgnoreCase) && !TerrainResolver.Resolve(state, tile).Name.Contains("Jungle", StringComparison.OrdinalIgnoreCase)), "peaks should not resolve to swamp or jungle");
     Assert(hills.Where(IsRegionEdge).Count() >= hills.Count / 2, "most hills should be placed on region edges");
     Assert(rugged.Any(tile => state.Map.Neighbors(tile.Coord).Any(n => n.Elevation is Elevation.Mountains or Elevation.Peaks)), "rugged tiles should cluster");
-    Assert(forested.Any(tile => state.Map.Neighbors(tile.Coord).Any(n => n.Vegetation == Vegetation.Lush)), "lush vegetation should form clusters");
+    Assert(elevated.All(tile => tile.Moisture == state.Regions[tile.RegionId!.Value].Moisture), "elevation should not dry tile moisture");
     Assert(state.Map.Tiles.Where(t => t.FeatureIds.Contains("volcano")).All(t => t.Elevation is Elevation.Mountains or Elevation.Peaks), "volcanoes should only appear on mountains or peaks");
-    Assert(state.Map.Tiles.Where(t => t.ResourceId == "game").All(t => TerrainResolver.Resolve(state, t).Passable && !TerrainResolver.Resolve(state, t).Name.Contains("Desert", StringComparison.OrdinalIgnoreCase) && !TerrainResolver.Resolve(state, t).Name.Contains("Ice", StringComparison.OrdinalIgnoreCase)), "game should not appear in deserts or ice terrain");
+    Assert(state.Map.Tiles.Where(t => t.ResourceId == "game").All(t => TerrainResolver.Resolve(state, t).Passable && TerrainResolver.Resolve(state, t).Name is not "Desert" and not "Badlands" && !TerrainResolver.Resolve(state, t).Name.Contains("Ice", StringComparison.OrdinalIgnoreCase)), "game should not appear in deserts, badlands, or ice terrain");
 
     bool IsRegionEdge(HexTile tile)
     {
@@ -385,6 +447,9 @@ void SaveLoadPreservesGameState()
 
     Assert(GameStateSerializer.ToJson(loaded) == json, "save/load round trip should preserve serialized state");
     Assert(loaded.WorldGeneration.ElevationVariance == state.WorldGeneration.ElevationVariance, "loaded state should retain world generation settings");
+    Assert(loaded.WorldGeneration.GrasslandShrublandBias == state.WorldGeneration.GrasslandShrublandBias, "loaded state should retain grassland/shrubland bias");
+    Assert(loaded.WorldGeneration.DesertBadlandsBias == state.WorldGeneration.DesertBadlandsBias, "loaded state should retain desert/badlands bias");
+    Assert(loaded.WorldGeneration.ConiferBroadleafForestBias == state.WorldGeneration.ConiferBroadleafForestBias, "loaded state should retain conifer/broadleaf bias");
     Assert(loaded.Map.Tiles.Where(t => t.Elevation == Elevation.Coast).All(t => t.WaterBodyKind != WaterBodyKind.None), "loaded coast tiles should retain water-body classification");
     Assert(loaded.Map.Get(stack.Coord).StackIds.Contains(stack.Id), "loaded map should retain stack tile index");
     Assert(loaded.Stacks[stack.Id].JoinedAgentIds.SequenceEqual([agent.Id]), "loaded stack should retain joined leader");
@@ -415,11 +480,11 @@ void MovementOverspendAllowsLastStep()
     // that costs 1.0 — spending the remainder and arriving with 0 left.
     stack.MovementLeft = 0.5;
     var range = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
-    var flatNeighbors = state.Map.Neighbors(stack.Coord)
-        .Where(t => TerrainResolver.Resolve(state, t).Passable && GameRules.TileMovementCost(state, t) == 1.0)
+    var passableNeighbors = state.Map.Neighbors(stack.Coord)
+        .Where(t => TerrainResolver.Resolve(state, t).Passable)
         .ToList();
-    Assert(flatNeighbors.Count > 0, "player starting tile should have at least one flat passable neighbor");
-    Assert(flatNeighbors.All(t => range.ContainsKey(t.Coord)), "unit with 0.5 movement should reach flat neighbors via overspend");
+    Assert(passableNeighbors.Count > 0, "player starting tile should have at least one passable neighbor");
+    Assert(passableNeighbors.All(t => range.ContainsKey(t.Coord)), "unit with 0.5 movement should reach passable neighbors via overspend");
 
     // With exactly 0 movement, no tile beyond the origin is reachable.
     stack.MovementLeft = 0;
@@ -578,14 +643,20 @@ bool IsMapEdge(HexTile tile)
     return col == 0 || row == 0 || col == WorldGenerationSettings.DefaultMapSize - 1 || row == WorldGenerationSettings.DefaultMapSize - 1;
 }
 
-string ResolveName(BaseBiome biome, TemperatureBand temperature, Vegetation vegetation)
+bool IsAllowedLandTerrain(string name)
 {
-    return TerrainResolver.ResolveRegionBiome(biome, temperature, vegetation);
-}
-
-bool StartsWithTemperature(string name)
-{
-    return Enum.GetNames<TemperatureBand>().Any(temperature => name.StartsWith(temperature + " ", StringComparison.OrdinalIgnoreCase));
+    return name is "Ice Sheet"
+        or "Tundra"
+        or "Taiga"
+        or "Grassland"
+        or "Shrubland"
+        or "Conifer Forest"
+        or "Broadleaf Forest"
+        or "Swamp"
+        or "Desert"
+        or "Badlands"
+        or "Prairie"
+        or "Jungle";
 }
 
 bool DesertRegionsAreBroad(GameState state)

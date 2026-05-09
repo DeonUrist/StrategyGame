@@ -87,11 +87,11 @@ public static class RegionNameGenerator
 
         return biomeName switch
         {
-            "Desert" or "Steppe" or "Wasteland" or "Badlands" => AridPrefixes,
-            "Swamp" or "Wetland" or "Floodplain" => WetPrefixes,
-            "Jungle" or "Rainforest" or "Forest" or "Taiga" => ForestPrefixes,
-            "Shrubland" or "Barrens" or "Dryland" => PlainPrefixes,
-            "Grassland" or "Prairie" or "Savanna" or "Plain" => PlainPrefixes,
+            "Desert" or "Badlands" => AridPrefixes,
+            "Swamp" => WetPrefixes,
+            "Jungle" or "Conifer Forest" or "Broadleaf Forest" or "Taiga" => ForestPrefixes,
+            "Shrubland" => PlainPrefixes,
+            "Grassland" or "Prairie" => PlainPrefixes,
             _ => DefaultPrefixes
         };
     }
@@ -100,13 +100,13 @@ public static class RegionNameGenerator
     {
         return biomeName switch
         {
-            "Desert" or "Steppe" or "Wasteland" or "Badlands" => AridSuffixes,
+            "Desert" or "Badlands" => AridSuffixes,
             "Tundra" or "Ice Sheet" or "Ocean Ice Sheet" => ColdSuffixes,
-            "Swamp" or "Wetland" or "Floodplain" => WetSuffixes,
-            "Jungle" or "Rainforest" => JungleSuffixes,
-            "Forest" or "Taiga" => ForestSuffixes,
-            "Shrubland" or "Barrens" => ScrubSuffixes,
-            "Grassland" or "Prairie" or "Savanna" or "Plain" => GrasslandSuffixes,
+            "Swamp" => WetSuffixes,
+            "Jungle" => JungleSuffixes,
+            "Conifer Forest" or "Broadleaf Forest" or "Taiga" => ForestSuffixes,
+            "Shrubland" => ScrubSuffixes,
+            "Grassland" or "Prairie" => GrasslandSuffixes,
             _ => DefaultSuffixes
         };
     }

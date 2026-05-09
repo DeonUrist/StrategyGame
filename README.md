@@ -39,7 +39,7 @@ godot --headless --path V:\Repos\StrategyGame --quit
 - Pure simulation code lives under `src/Game/Core/` and has no Godot API dependency.
 - Godot presentation code lives under `src/Game/Presentation/` and is split into startup, input, HUD/menu, drawing, and hex math partials.
 - JSON catalogs in `data/` currently define units, buildings, factions, and weighted AI events.
-- Terrain and resources are code-defined: land terrain is resolved from saved biome regions with moisture, water retention, temperature, and vegetation; resources are placed by map-generation rules.
+- Terrain and resources are code-defined: land terrain is resolved from saved biome regions with temperature, moisture, and explicit terrain-variant sliders; resources are placed by map-generation rules.
 - Biome resolution is documented in `docs/BIOME_README.md`.
 - The sandbox generator creates an island with ocean borders, small inland lakes, biome regions, region-edge hills and mountains with a few peaks, starting cities, armies, and agents.
 - Save/load snapshots are handled in core and preserve deterministic AI replay.

@@ -10,9 +10,9 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 - JSON-authored catalogs for units, buildings, factions, and weighted AI events.
 - Code-defined terrain resolver for saved biome regions, elevation, vegetation, coastline, and special feature combinations.
 - Seeded 32x32 generated hex island map using axial coordinates.
-- Ocean border, small inland lakes, region-edge hills, mountains, peaks, volcano features, saved biome regions, north/south temperature bands, moisture, water retention, and vegetation rolls.
+- Ocean border, small inland lakes, region-edge hills, mountains, peaks, volcano features, saved biome regions, north/south temperature bands, moisture, and explicit terrain-variant rolls.
 - Ground and water terrain, terrain movement costs, terrain defense modifiers, resources, cities, armies, and agents.
-- Saved worldgen settings for wetness, vegetation, elevation variance, and climate bias.
+- Saved worldgen settings for wetness, terrain variants, elevation variance, and climate bias.
 - Multi-unit army stacks per tile.
 - Agent units that can move independently, join a friendly army as leader, and detach.
 - City state with a building chain: Campsite -> Shelter -> Encampment -> Village Square -> Town Square -> City Square.

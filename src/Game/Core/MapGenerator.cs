@@ -75,8 +75,7 @@ public static partial class MapGenerator
                 {
                     Coord = coord,
                     Elevation = water ? Elevation.Ocean : Elevation.Flat,
-                    Moisture = MoistureLevel.Normal,
-                    Vegetation = Vegetation.None
+                    Moisture = MoistureLevel.Normal
                 });
             }
         }

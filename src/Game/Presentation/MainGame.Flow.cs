@@ -62,7 +62,9 @@ public partial class MainGame
         {
             MapSize = (int)_mapSizeSlider.Value,
             Wetness = (int)_wetnessSlider.Value,
-            Vegetation = (int)_vegetationSlider.Value,
+            GrasslandShrublandBias = (int)_grasslandShrublandSlider.Value,
+            DesertBadlandsBias = (int)_desertBadlandsSlider.Value,
+            ConiferBroadleafForestBias = (int)_coniferBroadleafSlider.Value,
             ElevationVariance = (int)_elevationSlider.Value,
             MaxSeaNumber = (int)_maxSeaSlider.Value,
             ClimateBias = SliderClimateBias()

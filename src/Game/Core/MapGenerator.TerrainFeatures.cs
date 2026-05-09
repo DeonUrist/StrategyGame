@@ -40,7 +40,6 @@ public static partial class MapGenerator
                 }
 
                 tile.Elevation = Elevation.Coast;
-                tile.Vegetation = Vegetation.None;
                 tile.RegionId = null;
                 tile.FeatureIds.Clear();
                 tile.ResourceId = null;
@@ -51,7 +50,7 @@ public static partial class MapGenerator
     private static void AddElevationFeatures(GameState state, Random random)
     {
         // Elevation is generated after regions so hills and mountains can prefer
-        // region borders and can locally dry the already-assigned biome tiles.
+        // region borders while remaining separate from biome identity.
         var variance = Math.Clamp(state.WorldGeneration.ElevationVariance, 0, 100);
         if (variance == 0)
         {
@@ -77,12 +76,6 @@ public static partial class MapGenerator
         var peakTarget = mountainCount == 0 ? 0 : Math.Max(1, mountainCount * variance * 18 / 10000);
         AddPeaks(state, land, peakTarget, random);
 
-        foreach (var tile in land.Where(t => t.Elevation is Elevation.Hills or Elevation.Mountains or Elevation.Peaks))
-        {
-            // Drying happens after all tiers are placed so a tile promoted from
-            // hill -> mountain -> peak receives only its final elevation effect.
-            ApplyElevationDrying(state, tile, random);
-        }
     }
 
     private static void AddHills(GameState state, List<HexTile> land, int target, Random random)
@@ -116,11 +109,11 @@ public static partial class MapGenerator
 
     private static void AddMountains(GameState state, List<HexTile> land, int target, Random random)
     {
-        // Mountains can replace hills or nearby flat tiles, but every candidate
-        // must have hills within distance two so mountains read as emerging from
-        // rugged terrain instead of appearing in isolation.
+        // Mountains are placed on flat tiles near hills. Keeping the nearby
+        // hills intact makes mountain ranges read as emerging from rugged
+        // foothills instead of consuming their own visual support.
         var candidates = land
-            .Where(t => t.Elevation is Elevation.Hills or Elevation.Flat && HasElevationWithin(state, t, Elevation.Hills, 2))
+            .Where(t => t.Elevation == Elevation.Flat && HasElevationWithin(state, t, Elevation.Hills, 2))
             .OrderByDescending(t => IsRegionEdge(state, t) ? 1 : 0)
             .ThenBy(_ => random.Next())
             .Take(target)
@@ -148,6 +141,11 @@ public static partial class MapGenerator
                 break;
             }
 
+            if (state.Map.Neighbors(tile.Coord).Any(candidates.Contains))
+            {
+                continue;
+            }
+
             if (state.Map.Neighbors(tile.Coord).Any(n => n.Elevation == Elevation.Mountains && !candidates.Contains(n)))
             {
                 candidates.Add(tile);
@@ -173,48 +171,6 @@ public static partial class MapGenerator
         // The map is small enough that this direct scan is fine for generation
         // and keeps the rule easy to read.
         return state.Map.Tiles.Any(other => other.Elevation == elevation && other.Coord.DistanceTo(tile.Coord) <= distance);
-    }
-
-    private static void ApplyElevationDrying(GameState state, HexTile tile, Random random)
-    {
-        // Elevated tiles keep their parent RegionId, but their effective tile
-        // moisture/vegetation is reduced. TerrainResolver uses these tile-local
-        // values, which prevents wet/lush terrain such as swamp or jungle on
-        // peaks without splitting the region.
-        switch (tile.Elevation)
-        {
-            case Elevation.Hills:
-                tile.Moisture = DecreaseMoisture(tile.Moisture, 1);
-                tile.Vegetation = DecreaseVegetation(tile.Vegetation, random.Next(0, 2));
-                break;
-            case Elevation.Mountains:
-                tile.Moisture = DecreaseMoisture(tile.Moisture, random.Next(1, 3));
-                tile.Vegetation = DecreaseVegetation(tile.Vegetation, random.Next(0, 3));
-                break;
-            case Elevation.Peaks:
-                tile.Moisture = DecreaseMoisture(tile.Moisture, random.Next(1, 3));
-                tile.Vegetation = DecreaseVegetation(tile.Vegetation, random.Next(1, 3));
-                break;
-        }
-
-        if (tile.RegionId is { } regionId && state.Regions.TryGetValue(regionId, out var region))
-        {
-            tile.Vegetation = TerrainResolver.ClampTileVegetation(region, tile);
-        }
-    }
-
-    private static MoistureLevel DecreaseMoisture(MoistureLevel moisture, int steps)
-    {
-        // Enum order is Dry=0, Normal=1, Wet=2, so subtracting steps dries the
-        // tile and clamping prevents underflow.
-        return (MoistureLevel)Math.Max((int)MoistureLevel.Dry, (int)moisture - steps);
-    }
-
-    private static Vegetation DecreaseVegetation(Vegetation vegetation, int steps)
-    {
-        // Enum order is None=0, Sparse=1, Lush=2, so subtracting steps removes
-        // vegetation in the same way moisture drying works.
-        return (Vegetation)Math.Max((int)Vegetation.None, (int)vegetation - steps);
     }
 
     private static void AddMapDetails(GameState state, Random random)
@@ -272,10 +228,8 @@ public static partial class MapGenerator
             Id = regionId,
             Name = RegionNameGenerator.Generate("Ice Sheet", TemperatureBand.Arctic, regionId),
             Moisture = MoistureLevel.Normal,
-            WaterRetention = WaterRetention.Normal,
             Temperature = TemperatureBand.Arctic,
-            BaseBiome = BaseBiome.Plain,
-            Vegetation = Vegetation.None,
+            BaseBiome = BaseBiome.IceSheet,
             FinalBiomeName = "Ice Sheet"
         };
 
@@ -288,7 +242,6 @@ public static partial class MapGenerator
 
             tile.RegionId = regionId;
             tile.Moisture = region.Moisture;
-            tile.Vegetation = Vegetation.None;
             region.TileCoords.Add(tile.Coord);
         }
 
@@ -423,10 +376,8 @@ public static partial class MapGenerator
     private static void ConvertRegionToSea(GameState state, RegionState region)
     {
         region.Moisture = MoistureLevel.Normal;
-        region.WaterRetention = WaterRetention.Holding;
         region.Temperature = TemperatureBand.Temperate;
-        region.BaseBiome = BaseBiome.Floodplain;
-        region.Vegetation = Vegetation.None;
+        region.BaseBiome = BaseBiome.Swamp;
         region.FinalBiomeName = "Sea";
 
         foreach (var coord in region.TileCoords)
@@ -434,7 +385,6 @@ public static partial class MapGenerator
             var tile = state.Map.Get(coord);
             tile.Elevation = Elevation.Coast;
             tile.Moisture = region.Moisture;
-            tile.Vegetation = Vegetation.None;
             tile.WaterBodyKind = WaterBodyKind.Sea;
             tile.ResourceId = null;
             tile.FeatureIds.Clear();
@@ -552,7 +502,6 @@ public static partial class MapGenerator
                 tile.Elevation = Elevation.DeepIce;
                 tile.RegionId = null;
                 tile.Moisture = MoistureLevel.Normal;
-                tile.Vegetation = Vegetation.None;
                 tile.WaterBodyKind = WaterBodyKind.None;
                 tile.FeatureIds.Clear();
 
@@ -592,6 +541,7 @@ public static partial class MapGenerator
         var resources = new List<string> { "copper", "iron", "gold", "silver" };
         var terrain = TerrainResolver.Resolve(state, tile);
         var isDesertOrPolar = terrain.Name.Contains("Desert", StringComparison.OrdinalIgnoreCase)
+                            || terrain.Name.Contains("Badlands", StringComparison.OrdinalIgnoreCase)
                             || terrain.Name.Contains("Ice", StringComparison.OrdinalIgnoreCase)
                             || terrain.Name.Contains("Arctic", StringComparison.OrdinalIgnoreCase);
 

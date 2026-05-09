@@ -45,8 +45,8 @@ public static class ElevationExtensions
     }
 }
 
-// Regions use moisture and water retention to choose a base biome. Temperature
-// is then applied as a north/south climate flavor layer.
+// Regions use moisture and temperature to choose a base biome. A few terrain
+// pairs use explicit worldgen bias sliders to pick their regional variant.
 public enum MoistureLevel
 {
     Dry,
@@ -54,20 +54,12 @@ public enum MoistureLevel
     Wet
 }
 
-public enum WaterRetention
-{
-    Draining,
-    Normal,
-    Holding
-}
-
 public enum TemperatureBand
 {
-    Tropical,
-    Subtropical,
-    Temperate,
     Subarctic,
-    Arctic
+    Arctic,
+    Temperate,
+    Tropical
 }
 
 public enum ClimateBias
@@ -79,24 +71,20 @@ public enum ClimateBias
 
 public enum BaseBiome
 {
+    IceSheet,
+    Tundra,
+    Taiga,
     Desert,
-    Wasteland,
     Badlands,
-    Dryland,
-    Plain,
-    Floodplain,
-    Barrens,
-    Wetland,
-    Swamp
-}
-
-public enum Vegetation
-{
-    None,
-    Sparse,
-    Lush
+    Grassland,
+    Shrubland,
+    ConiferForest,
+    BroadleafForest,
+    Swamp,
+    Prairie,
+    Jungle
 }
 
 // ResolvedTerrain is the final gameplay-facing terrain result after the region
-// biome, elevation, vegetation, and features are combined.
+// biome, elevation, and features are combined.
 public sealed record ResolvedTerrain(string Name, string Color, double MovementCost, bool Passable, int DefenseModifier);

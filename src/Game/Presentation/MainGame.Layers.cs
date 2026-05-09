@@ -341,7 +341,7 @@ public partial class MainGame
             };
         }
 
-        var biome = NormalizeAssetKey(TerrainResolver.Resolve(state, tile).Name);
+        var biome = TerrainAssetKey(TerrainResolver.Resolve(state, tile).Name);
         return tile.Elevation switch
         {
             Elevation.Hills => $"{biome}_hills",
@@ -354,6 +354,11 @@ public partial class MainGame
     private static string NormalizeAssetKey(string value)
     {
         return value.Trim().ToLowerInvariant().Replace(" ", "_").Replace("-", "_");
+    }
+
+    private static string TerrainAssetKey(string terrainName)
+    {
+        return NormalizeAssetKey(terrainName);
     }
 }
 

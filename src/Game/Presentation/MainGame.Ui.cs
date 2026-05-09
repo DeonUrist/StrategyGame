@@ -78,7 +78,7 @@ public partial class MainGame
 
         var panel = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(390, 360)
+            CustomMinimumSize = new Vector2(470, 430)
         };
         ApplyPanelChrome(panel);
         center.AddChild(panel);
@@ -94,7 +94,9 @@ public partial class MainGame
 
         _mapSizeSlider = AddSlider(box, "Map size", WorldGenerationSettings.MinMapSize, WorldGenerationSettings.MaxMapSize, 16, WorldGenerationSettings.DefaultMapSize, out _mapSizeValueLabel, FormatMapSize);
         _wetnessSlider = AddSlider(box, "Wetness", 0, 100, 1, 50, out _wetnessValueLabel, v => $"{(int)v}%");
-        _vegetationSlider = AddSlider(box, "Vegetation", 0, 100, 1, 65, out _vegetationValueLabel, v => $"{(int)v}%");
+        _grasslandShrublandSlider = AddSlider(box, "Grassland 0 - 100 Shrubland", 0, 100, 1, 35, out _grasslandShrublandValueLabel, v => $"{(int)v}%");
+        _desertBadlandsSlider = AddSlider(box, "Desert 0 - 100 Badlands", 0, 100, 1, 25, out _desertBadlandsValueLabel, v => $"{(int)v}%");
+        _coniferBroadleafSlider = AddSlider(box, "Conifer 0 - 100 Broadleaf", 0, 100, 1, 50, out _coniferBroadleafValueLabel, v => $"{(int)v}%");
         _elevationSlider = AddSlider(box, "Elevation variance", 0, 100, 1, 50, out _elevationValueLabel, v => $"{(int)v}%");
         _maxSeaSlider = AddSlider(box, "Max sea number", 0, 5, 1, 2, out _maxSeaValueLabel, v => $"{(int)v}");
         _climateBiasSlider = AddSlider(box, "Climate bias", -1, 1, 1, 0, out _climateBiasValueLabel, FormatClimateBias);
@@ -123,7 +125,7 @@ public partial class MainGame
         row.AddChild(new Label
         {
             Text = caption,
-            CustomMinimumSize = new Vector2(135, 0)
+            CustomMinimumSize = new Vector2(210, 0)
         });
 
         var slider = new HSlider

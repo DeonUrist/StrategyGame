@@ -19,11 +19,11 @@ Core files live in `src/Game/Core`. They do not use Godot APIs, so they are easi
 - `HexCoord.cs`: axial hex coordinate math, neighbors, and distance.
 - `MapGenerator.cs`: top-level deterministic 32x32 sandbox generation flow and base tile creation.
 - `MapGenerator.Geometry.cs`: axial/row-column conversion, coastline shape, and map-edge helpers.
-- `MapGenerator.Regions.cs`: saved biome region creation, moisture/water-retention assignment, north/south temperature bands, and vegetation rolls.
-- `MapGenerator.TerrainFeatures.cs`: inland lakes, region-edge hill/mountain/peak generation, elevation drying, volcanoes, and resource placement.
+- `MapGenerator.Regions.cs`: saved biome region creation, moisture assignment, north/south temperature bands, and explicit terrain-variant rolls.
+- `MapGenerator.TerrainFeatures.cs`: inland lakes, region-edge hill/mountain/peak generation, volcanoes, and resource placement.
 - `MapGenerator.StartingPieces.cs`: faction starting cities, army stacks, agents, and start-location fallback.
 - `TerrainResolver.cs`: public terrain resolution entry points for water and saved region biomes.
-- `TerrainResolver.Biomes.cs`: moisture/water-retention base biome table and base-biome/temperature/vegetation final biome table.
+- `TerrainResolver.Biomes.cs`: temperature/moisture terrain table and paired terrain variant selection.
 - `TerrainResolver.Stats.cs`: water terrain names, terrain colors, movement costs, and defense modifiers.
 - `GameRules.Movement.cs`: movement cost and pathfinding range.
 - `GameRules.Stacks.cs`: army stack movement and combat entry.

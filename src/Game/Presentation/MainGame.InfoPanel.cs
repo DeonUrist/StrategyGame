@@ -48,11 +48,10 @@ public partial class MainGame
 
     private string TilePanelText(HexTile tile)
     {
-        // Tile text combines raw generation properties with resolved terrain so
-        // it is useful both for playing and debugging world generation.
         var state = _state ?? throw new InvalidOperationException("No active game.");
         var terrain = TerrainResolver.Resolve(state, tile);
         var terrainColor = terrain.Color;
+        var terrainLabel = TerrainLabel(terrain, tile);
         var featureText = tile.FeatureIds.Count == 0
             ? ""
             : $"\nFeatures: {string.Join(", ", tile.FeatureIds.Select(feature => ColorText(feature, "#c88b4a")))}";
@@ -66,17 +65,28 @@ public partial class MainGame
             ? ""
             : CityPanelText(state, state.Cities[tile.CityId.Value]);
 
-        return $"Tile {tile.Coord.Q}/{tile.Coord.R}: {ColorText(terrain.Name, terrainColor)}"
-             + $"\nElevation: {ColorText(tile.Elevation.ToString(), ElevationColor(tile.Elevation))}, moisture: {ColorText(tile.Moisture.ToString(), MoistureColor(tile.Moisture))}, vegetation: {ColorText(tile.Vegetation.ToString(), VegetationColor(tile.Vegetation))}"
+        return $"Tile {tile.Coord.Q}/{tile.Coord.R}"
+             + $"\n{ColorText(terrainLabel, terrainColor)}"
              + regionText
-             + featureText
              + resourceText
+             + featureText
              + cityText;
     }
 
     private static string RegionPanelText(RegionState region)
     {
-        return $"\n{region.Name} ({region.Id}): {ColorText(region.Temperature.ToString(), ClimateColor(region.Temperature))}, {ColorText(region.WaterRetention.ToString(), WaterRetentionColor(region.WaterRetention))}, {ColorText(region.FinalBiomeName, BaseBiomeColor(region.BaseBiome))}";
+        return $"\nRegion {region.Id}: {Escape(region.Name)}";
+    }
+
+    private static string TerrainLabel(ResolvedTerrain terrain, HexTile tile)
+    {
+        return tile.Elevation switch
+        {
+            Elevation.Hills => $"{terrain.Name}, Hills",
+            Elevation.Mountains => $"{terrain.Name}, Mountains",
+            Elevation.Peaks => $"{terrain.Name}, Peaks",
+            _ => terrain.Name
+        };
     }
 
     private string StackPanelText(GameState state, StackState stack)
@@ -129,84 +139,6 @@ public partial class MainGame
     private static string Escape(string text)
     {
         return text.Replace("[", "[lb]").Replace("]", "[rb]");
-    }
-
-    private static string ElevationColor(Elevation elevation)
-    {
-        return elevation switch
-        {
-            Elevation.Ocean => "#2f80c9",
-            Elevation.Coast => "#62b7e8",
-            Elevation.DeepIce => "#dfeaf3",
-            Elevation.Flat => "#88b868",
-            Elevation.Hills => "#b79b5d",
-            Elevation.Mountains => "#8d8f99",
-            Elevation.Peaks => "#e2edf4",
-            _ => "#ffffff"
-        };
-    }
-
-    private static string MoistureColor(MoistureLevel moisture)
-    {
-        return moisture switch
-        {
-            MoistureLevel.Dry => "#d7a55a",
-            MoistureLevel.Normal => "#88bf74",
-            MoistureLevel.Wet => "#4ca6a8",
-            _ => "#ffffff"
-        };
-    }
-
-    private static string VegetationColor(Vegetation vegetation)
-    {
-        return vegetation switch
-        {
-            Vegetation.None => "#b8b2a4",
-            Vegetation.Sparse => "#8dbb5f",
-            Vegetation.Lush => "#2f8a3e",
-            _ => "#ffffff"
-        };
-    }
-
-    private static string ClimateColor(TemperatureBand climate)
-    {
-        return climate switch
-        {
-            TemperatureBand.Tropical => "#e38b3d",
-            TemperatureBand.Subtropical => "#d4a64a",
-            TemperatureBand.Temperate => "#7cbf6b",
-            TemperatureBand.Subarctic => "#78a8c7",
-            TemperatureBand.Arctic => "#dceef7",
-            _ => "#ffffff"
-        };
-    }
-
-    private static string WaterRetentionColor(WaterRetention retention)
-    {
-        return retention switch
-        {
-            WaterRetention.Draining => "#c99154",
-            WaterRetention.Normal => "#8eb56d",
-            WaterRetention.Holding => "#5a9fc6",
-            _ => "#ffffff"
-        };
-    }
-
-    private static string BaseBiomeColor(BaseBiome biome)
-    {
-        return biome switch
-        {
-            BaseBiome.Desert => "#d8bd72",
-            BaseBiome.Wasteland => "#9b9278",
-            BaseBiome.Badlands => "#b07a4f",
-            BaseBiome.Dryland => "#bda463",
-            BaseBiome.Plain => "#8fca5a",
-            BaseBiome.Floodplain => "#7fb66a",
-            BaseBiome.Barrens => "#8c9f78",
-            BaseBiome.Wetland => "#4f8d69",
-            BaseBiome.Swamp => "#356f49",
-            _ => "#ffffff"
-        };
     }
 
     private static string ResourceTextColor(string resourceId)

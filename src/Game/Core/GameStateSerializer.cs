@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 10;
+    private const int CurrentVersion = 12;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -62,7 +62,6 @@ public static class GameStateSerializer
                 Coord = new HexCoord(tile.Q, tile.R),
                 Elevation = tile.Elevation,
                 Moisture = tile.Moisture,
-                Vegetation = tile.Vegetation,
                 WaterBodyKind = tile.WaterBodyKind,
                 RegionId = tile.RegionId,
                 ResourceId = tile.ResourceId,
@@ -107,10 +106,8 @@ public static class GameStateSerializer
                 Id = region.Id,
                 Name = region.Name,
                 Moisture = region.Moisture,
-                WaterRetention = region.WaterRetention,
                 Temperature = region.Temperature,
                 BaseBiome = region.BaseBiome,
-                Vegetation = region.Vegetation,
                 FinalBiomeName = region.FinalBiomeName
             };
 
@@ -198,10 +195,8 @@ public static class GameStateSerializer
                     r.Name,
                     r.TileCoords.Select(c => new CoordSnapshot(c.Q, c.R)).ToList(),
                     r.Moisture,
-                    r.WaterRetention,
                     r.Temperature,
                     r.BaseBiome,
-                    r.Vegetation,
                     r.FinalBiomeName))
                 .ToList(),
             Tiles = state.Map.Tiles
@@ -212,7 +207,6 @@ public static class GameStateSerializer
                     t.Coord.R,
                     t.Elevation,
                     t.Moisture,
-                    t.Vegetation,
                     t.WaterBodyKind,
                     t.RegionId,
                     t.FeatureIds.ToList(),
@@ -279,13 +273,21 @@ public static class GameStateSerializer
 
     private sealed record FactionSnapshot(string Id, string Name, string Color, bool IsPlayer);
     private sealed record CoordSnapshot(int Q, int R);
-    private sealed record WorldGenerationSnapshot(int MapSize, int Wetness, int Vegetation, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias)
+    private sealed record WorldGenerationSnapshot(int MapSize, int Wetness, int GrasslandShrublandBias, int DesertBadlandsBias, int ConiferBroadleafForestBias, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias)
     {
         public static WorldGenerationSnapshot FromState(WorldGenerationSettings settings)
         {
             // Use a snapshot record instead of serializing the runtime settings
             // object directly so the save format remains explicit and versioned.
-            return new WorldGenerationSnapshot(settings.MapSize, settings.Wetness, settings.Vegetation, settings.ElevationVariance, settings.MaxSeaNumber, settings.ClimateBias);
+            return new WorldGenerationSnapshot(
+                settings.MapSize,
+                settings.Wetness,
+                settings.GrasslandShrublandBias,
+                settings.DesertBadlandsBias,
+                settings.ConiferBroadleafForestBias,
+                settings.ElevationVariance,
+                settings.MaxSeaNumber,
+                settings.ClimateBias);
         }
 
         public WorldGenerationSettings ToState()
@@ -296,15 +298,17 @@ public static class GameStateSerializer
             {
                 MapSize = MapSize,
                 Wetness = Wetness,
-                Vegetation = Vegetation,
+                GrasslandShrublandBias = GrasslandShrublandBias,
+                DesertBadlandsBias = DesertBadlandsBias,
+                ConiferBroadleafForestBias = ConiferBroadleafForestBias,
                 ElevationVariance = ElevationVariance,
                 MaxSeaNumber = MaxSeaNumber,
                 ClimateBias = ClimateBias
             };
         }
     }
-    private sealed record RegionSnapshot(int Id, string Name, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, WaterRetention WaterRetention, TemperatureBand Temperature, BaseBiome BaseBiome, Vegetation Vegetation, string FinalBiomeName);
-    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, Vegetation Vegetation, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
+    private sealed record RegionSnapshot(int Id, string Name, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, TemperatureBand Temperature, BaseBiome BaseBiome, string FinalBiomeName);
+    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
     private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, double MovementLeft, List<int> JoinedAgentIds, List<UnitSnapshot> Units);
     private sealed record UnitSnapshot(string TypeId, int Count);
     private sealed record AgentSnapshot(int Id, string FactionId, string TypeId, string Name, int Q, int R, double MovementLeft, int? JoinedStackId);

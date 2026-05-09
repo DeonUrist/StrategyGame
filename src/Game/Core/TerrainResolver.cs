@@ -31,22 +31,19 @@ public static partial class TerrainResolver
             return ResolveWater(tile);
         }
 
-        var name = ResolveRegionBiome(BaseBiome.Plain, TemperatureBand.Temperate, tile.Vegetation);
+        var name = ResolveRegionBiome(BaseBiome.Grassland);
         var color = ColorFor(name);
-        var movementCost = MovementCost(tile.Elevation, tile.Vegetation, tile.FeatureIds);
-        var defense = DefenseModifier(tile.Elevation, tile.Vegetation, tile.FeatureIds);
+        var movementCost = MovementCost(name, tile.Elevation, tile.FeatureIds);
+        var defense = DefenseModifier(tile.Elevation, tile.FeatureIds);
         return new ResolvedTerrain(name, color, movementCost, true, defense);
     }
 
     public static ResolvedTerrain ResolveLand(RegionState region, HexTile tile)
     {
-        // Region retention and temperature stay broad regional properties, while
-        // tile moisture and vegetation may differ after elevation drying.
-        var baseBiome = ResolveTileBaseBiome(region, tile);
-        var finalName = ResolveRegionBiome(baseBiome, region.Temperature, tile.Vegetation);
+        var finalName = region.FinalBiomeName;
         var color = ColorFor(finalName);
-        var movementCost = MovementCost(tile.Elevation, tile.Vegetation, tile.FeatureIds);
-        var defense = DefenseModifier(tile.Elevation, tile.Vegetation, tile.FeatureIds);
+        var movementCost = MovementCost(finalName, tile.Elevation, tile.FeatureIds);
+        var defense = DefenseModifier(tile.Elevation, tile.FeatureIds);
         return new ResolvedTerrain(finalName, color, movementCost, true, defense);
     }
 }

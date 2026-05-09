@@ -7,10 +7,7 @@ public sealed class HexTile
 {
     public required HexCoord Coord { get; init; }
     public Elevation Elevation { get; set; }
-    // Moisture and Vegetation begin as copies of the owning region's values, then
-    // elevation can locally reduce them.
     public MoistureLevel Moisture { get; set; }
-    public Vegetation Vegetation { get; set; }
     public WaterBodyKind WaterBodyKind { get; set; }
     public int? RegionId { get; set; }
     public List<string> FeatureIds { get; } = [];
@@ -21,19 +18,16 @@ public sealed class HexTile
 }
 
 // RegionState is the source of truth for land biome identity. Every land tile
-// points to a region; the region owns moisture, water retention, temperature,
-// vegetation, and the final resolved biome name that future population systems
-// can use.
+// points to a region; the region owns moisture, temperature, and the final
+// resolved biome name that future population systems can use.
 public sealed class RegionState
 {
     public int Id { get; init; }
     public required string Name { get; set; }
     public List<HexCoord> TileCoords { get; } = [];
     public MoistureLevel Moisture { get; set; }
-    public WaterRetention WaterRetention { get; set; }
     public TemperatureBand Temperature { get; set; }
     public BaseBiome BaseBiome { get; set; }
-    public Vegetation Vegetation { get; set; }
     public required string FinalBiomeName { get; set; }
 }
 
@@ -179,7 +173,9 @@ public sealed class WorldGenerationSettings
 
     public int MapSize { get; init; } = DefaultMapSize;
     public int Wetness { get; init; } = 50;
-    public int Vegetation { get; init; } = 65;
+    public int GrasslandShrublandBias { get; init; } = 35;
+    public int DesertBadlandsBias { get; init; } = 25;
+    public int ConiferBroadleafForestBias { get; init; } = 50;
     public int ElevationVariance { get; init; } = 50;
     public int MaxSeaNumber { get; init; } = 2;
     public ClimateBias ClimateBias { get; init; } = ClimateBias.Normal;

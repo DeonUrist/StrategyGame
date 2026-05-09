@@ -41,26 +41,17 @@ public static partial class TerrainResolver
 
     private static string ColorFor(string name)
     {
-        // Colors are keyed by final terrain name because vegetation modifiers can
-        // turn different base biomes into the same gameplay terrain.
-        var key = StripTemperaturePrefix(name);
-        return key switch
+        return name switch
         {
             "Desert" => "#d8bd72",
-            "Wasteland" => "#9b9278",
             "Badlands" => "#b07a4f",
-            "Plain" => "#8fca5a",
-            "Floodplain" => "#7fb66a",
-            "Wetland" => "#4f8d69",
             "Swamp" => "#356f49",
-            "Savanna" => "#9da64b",
             "Jungle" => "#1f6f35",
-            "Rainforest" => "#247f3d",
-            "Steppe" => "#b7a76a",
             "Prairie" => "#a6bd63",
             "Grassland" => "#8fca5a",
             "Shrubland" => "#6fa85a",
-            "Forest" => "#2f8a3e",
+            "Conifer Forest" => "#1f6f46",
+            "Broadleaf Forest" => "#2f8a3e",
             "Taiga" => "#1f5f58",
             "Tundra" => "#9b8f72",
             "Ice Sheet" => "#eef4f7",
@@ -71,38 +62,32 @@ public static partial class TerrainResolver
         };
     }
 
-    private static string StripTemperaturePrefix(string name)
+    private static double MovementCost(string terrainName, Elevation elevation, List<string> features)
     {
-        foreach (var temperature in Enum.GetNames<TemperatureBand>())
-        {
-            var prefix = temperature + " ";
-            if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return name[prefix.Length..];
-            }
-        }
+        var cost = 1.0;
 
-        return name;
-    }
-
-    private static double MovementCost(Elevation elevation, Vegetation vegetation, List<string> features)
-    {
-        // Elevation supplies the base cost. Vegetation and special features add
-        // friction on top of that base.
-        var cost = elevation switch
+        cost += terrainName switch
         {
-            Elevation.DeepIce => 1.0,
-            Elevation.Flat => 1,
-            Elevation.Hills => 1.5,
-            Elevation.Mountains => 2.0,
-            Elevation.Peaks => 2.0,
-            _ => 1
+            "Desert" or "Tundra" or "Badlands" or "Swamp" => 0.5,
+            _ => 0
         };
 
-        cost += vegetation switch
+        cost += terrainName switch
         {
-            Vegetation.Sparse => 0.5,
-            Vegetation.Lush => 1.0,
+            "Taiga" or "Conifer Forest" or "Broadleaf Forest" or "Jungle" or "Swamp" => 0.5,
+            _ => 0
+        };
+
+        cost += terrainName switch
+        {
+            "Ice Sheet" => 1.0,
+            _ => 0
+        };
+
+        cost += elevation switch
+        {
+            Elevation.Hills => 0.5,
+            Elevation.Mountains or Elevation.Peaks => 1.0,
             _ => 0
         };
 
@@ -114,22 +99,13 @@ public static partial class TerrainResolver
         return cost;
     }
 
-    private static int DefenseModifier(Elevation elevation, Vegetation vegetation, List<string> features)
+    private static int DefenseModifier(Elevation elevation, List<string> features)
     {
-        // Defense uses the same terrain ingredients as movement, but with larger
-        // bonuses for rugged elevation.
         var defense = elevation switch
         {
             Elevation.Hills => 2,
             Elevation.Mountains => 4,
             Elevation.Peaks => 5,
-            _ => 0
-        };
-
-        defense += vegetation switch
-        {
-            Vegetation.Sparse => 1,
-            Vegetation.Lush => 1,
             _ => 0
         };
 

@@ -32,25 +32,28 @@ public static partial class MapGenerator
             var center = centers[i];
 
             // Region properties come from broad deterministic noise and global
-            // worldgen settings. These are the "default" biome values for the
-            // region before local elevation later dries individual tiles.
+            // worldgen settings. Temperature and moisture pick terrain directly;
+            // paired terrain cells use deterministic per-region variant rolls.
             var moisture = PickMoisture(center.Coord, seed, state.WorldGeneration.Wetness);
-            var retention = PickWaterRetention(center.Coord, seed);
             var temperature = PickTemperature(center.Coord, seed, state.WorldGeneration.ClimateBias, NormalizeMapSize(state.WorldGeneration.MapSize));
-            var baseBiome = TerrainResolver.PickBaseBiome(moisture, retention, temperature);
-            var vegetation = PickVegetation(baseBiome, temperature, state.WorldGeneration.Vegetation, random);
-            var finalName = TerrainResolver.ResolveRegionBiome(baseBiome, temperature, vegetation);
             var regionId = i + 1;
+            var variantRoll = RegionVariantRoll(center.Coord, seed, regionId);
+            var baseBiome = TerrainResolver.PickBaseBiome(
+                moisture,
+                temperature,
+                state.WorldGeneration.GrasslandShrublandBias,
+                state.WorldGeneration.DesertBadlandsBias,
+                state.WorldGeneration.ConiferBroadleafForestBias,
+                variantRoll);
+            var finalName = TerrainResolver.ResolveRegionBiome(baseBiome);
 
             state.Regions[regionId] = new RegionState
             {
                 Id = regionId,
                 Name = RegionNameGenerator.Generate(finalName, temperature, seed ^ regionId),
                 Moisture = moisture,
-                WaterRetention = retention,
                 Temperature = temperature,
                 BaseBiome = baseBiome,
-                Vegetation = vegetation,
                 FinalBiomeName = finalName
             };
         }
@@ -62,14 +65,13 @@ public static partial class MapGenerator
         {
             // Assign each land tile to its nearest center. Region identity is
             // saved and later used for world-info systems, while tile moisture
-            // and vegetation start as copies that elevation can locally modify.
+            // starts as a copy of the resolved regional moisture.
             var region = state.Regions.Values
                 .OrderBy(r => EffectiveRegionDistance(tile.Coord, centers[r.Id - 1].Coord, r))
                 .First();
 
             tile.RegionId = region.Id;
             tile.Moisture = region.Moisture;
-            tile.Vegetation = region.Vegetation;
             region.TileCoords.Add(tile.Coord);
         }
     }
@@ -95,20 +97,6 @@ public static partial class MapGenerator
         };
     }
 
-    private static WaterRetention PickWaterRetention(HexCoord coord, int seed)
-    {
-        // Water retention is separate from moisture: a wet draining area becomes
-        // barrens, while a wet holding area becomes swamp.
-        var col = ColumnOf(coord);
-        var score = Math.Sin((col - seed) * 0.31) + Math.Cos((coord.R + seed) * 0.27);
-        return score switch
-        {
-            < -0.35 => WaterRetention.Draining,
-            > 0.45 => WaterRetention.Holding,
-            _ => WaterRetention.Normal
-        };
-    }
-
     private static TemperatureBand PickTemperature(HexCoord coord, int seed, ClimateBias climateBias, int mapSize)
     {
         // Row controls temperature: north is colder, south is hotter. A small
@@ -126,39 +114,23 @@ public static partial class MapGenerator
         var southHeat = Math.Clamp(latitude + jitter + bias, 0.0, 1.0);
         return southHeat switch
         {
-            < 0.16 => TemperatureBand.Arctic,
-            < 0.28 => TemperatureBand.Subarctic,
-            < 0.49 => TemperatureBand.Temperate,
-            < 0.70 => TemperatureBand.Subtropical,
+            < 0.18 => TemperatureBand.Arctic,
+            < 0.34 => TemperatureBand.Subarctic,
+            < 0.66 => TemperatureBand.Temperate,
             _ => TemperatureBand.Tropical
         };
     }
 
-    private static Vegetation PickVegetation(BaseBiome biome, TemperatureBand temperature, int worldVegetation, Random random)
+    private static int RegionVariantRoll(HexCoord coord, int seed, int regionId)
     {
-        // Biome and temperature set the maximum allowed vegetation. The global
-        // vegetation setting controls how often a region reaches sparse/lush.
-        var max = TerrainResolver.MaxVegetation(biome, temperature);
-        if (max == Vegetation.None)
+        unchecked
         {
-            return Vegetation.None;
+            var value = seed;
+            value = (value * 397) ^ regionId;
+            value = (value * 397) ^ coord.Q;
+            value = (value * 397) ^ coord.R;
+            return Math.Abs(value == int.MinValue ? 0 : value) % 100;
         }
-
-        var roll = random.Next(100);
-        var vegetationChance = Math.Clamp(worldVegetation, 0, 100);
-        if (max == Vegetation.Sparse)
-        {
-            return roll < vegetationChance ? Vegetation.Sparse : Vegetation.None;
-        }
-
-        var lushChance = vegetationChance * 45 / 100;
-        // Lush is intentionally rarer than "any vegetation" so forests/jungles
-        // exist as notable regions rather than covering every permissive biome.
-        return roll < lushChance
-            ? Vegetation.Lush
-            : roll < vegetationChance
-                ? Vegetation.Sparse
-                : Vegetation.None;
     }
 
     private static void EnsurePolarIceCoverage(GameState state, List<HexTile> centers)
@@ -188,35 +160,22 @@ public static partial class MapGenerator
         foreach (var region in candidates)
         {
             region.Temperature = TemperatureBand.Arctic;
-            region.Vegetation = TerrainResolver.ClampVegetation(region.BaseBiome, region.Temperature, region.Vegetation);
-            region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
+            region.BaseBiome = BaseBiome.IceSheet;
+            region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome);
             region.Name = RegionNameGenerator.Generate(region.FinalBiomeName, region.Temperature, region.Id);
         }
     }
 
     private static void RebalanceDesertRegions(GameState state, List<HexTile> centers, int seed)
     {
-        // Deserts should be a bit rarer at the region level, but the surviving
-        // ones should expand modestly beyond a neutral nearest-center split.
-        foreach (var region in state.Regions.Values.Where(r => r.BaseBiome == BaseBiome.Desert))
-        {
-            var center = centers[region.Id - 1];
-            var keepScore = Math.Sin((ColumnOf(center.Coord) + seed) * 0.41) + Math.Cos((center.Coord.R - seed) * 0.23);
-            if (keepScore < 0.35)
-            {
-                region.Moisture = MoistureLevel.Normal;
-                region.WaterRetention = WaterRetention.Draining;
-                region.BaseBiome = BaseBiome.Dryland;
-                region.Vegetation = TerrainResolver.ClampVegetation(region.BaseBiome, region.Temperature, region.Vegetation);
-                region.FinalBiomeName = TerrainResolver.ResolveRegionBiome(region.BaseBiome, region.Temperature, region.Vegetation);
-                region.Name = RegionNameGenerator.Generate(region.FinalBiomeName, region.Temperature, seed ^ region.Id);
-            }
-        }
+        // Deserts are now controlled directly by the dry tropical row and the
+        // Desert/Badlands slider. This hook remains to keep generation order
+        // stable while making the old drainage rebalance a no-op.
     }
 
     private static double EffectiveRegionDistance(HexCoord tile, HexCoord center, RegionState region)
     {
         var distance = tile.DistanceTo(center);
-        return region.BaseBiome == BaseBiome.Desert ? distance * 0.84 : distance;
+        return region.BaseBiome is BaseBiome.Desert or BaseBiome.Badlands ? distance * 0.90 : distance;
     }
 }
