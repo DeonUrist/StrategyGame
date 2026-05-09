@@ -8,6 +8,11 @@ public partial class MainGame
     // Pointy-top corner offsets at HexSize radius, computed once. The -30° start
     // puts a vertex at the top and matches HexToPixel/PixelToHex math.
     private static readonly Vector2[] HexCornerOffsets = BuildHexCornerOffsets();
+    private static readonly Vector2[] TileTextureHexCornerOffsets = BuildTileTextureHexCornerOffsets();
+    internal const float TileTextureWidth = HexSize * 2f;
+    internal const float TileTextureHexOccupancy = 0.5f;
+    internal const float TileTextureVisibleHeight = TileTextureWidth * TileTextureHexOccupancy;
+    internal const float TileTextureVisibleCenterYOffset = TileTextureVisibleHeight / 2f;
 
     // Reusable closed-polygon buffers. _Draw is single-threaded so sharing is safe.
     private static readonly Vector2[] HexBorderBuffer = new Vector2[7];
@@ -15,12 +20,28 @@ public partial class MainGame
 
     private static Vector2[] BuildHexCornerOffsets()
     {
+        var halfHeight = TileTextureVisibleHeight / 2f;
+        return
+        [
+            new(-HexSize / 2f, -halfHeight),
+            new(HexSize / 2f, -halfHeight),
+            new(HexSize, 0f),
+            new(HexSize / 2f, halfHeight),
+            new(-HexSize / 2f, halfHeight),
+            new(-HexSize, 0f)
+        ];
+    }
+
+    private static Vector2[] BuildTileTextureHexCornerOffsets()
+    {
         var offsets = new Vector2[6];
-        for (var i = 0; i < 6; i++)
+        for (var i = 0; i < HexCornerOffsets.Length; i++)
         {
-            var angle = MathF.PI / 180f * (60f * i - 30f);
-            offsets[i] = new Vector2(HexSize * MathF.Cos(angle), HexSize * MathF.Sin(angle));
+            offsets[i] = new Vector2(
+                HexCornerOffsets[i].X,
+                HexCornerOffsets[i].Y + TileTextureVisibleCenterYOffset);
         }
+
         return offsets;
     }
 
@@ -28,27 +49,33 @@ public partial class MainGame
     {
         // Clamp zoom so the player cannot zoom so far in/out that the map becomes
         // impossible to navigate.
-        var zoom = Mathf.Clamp(_camera.Zoom.X * factor, 0.45f, 2.0f);
+        var zoom = Mathf.Clamp(_camera.Zoom.X * factor, MinCameraZoom, MaxCameraZoom);
         _camera.Zoom = new Vector2(zoom, zoom);
     }
 
     private static Vector2 HexToPixel(HexCoord coord)
     {
-        // Axial hex coordinates use Q/R grid positions.
-        // Godot drawing uses X/Y pixels, so this converts grid space to screen space.
-        var x = HexSize * MathF.Sqrt(3f) * (coord.Q + coord.R / 2f) + 70f;
-        var y = HexSize * 1.5f * coord.R + 70f;
+        // Flat-top axial layout. The terrain art keeps the actual hex in the
+        // lower half of a square tile, so vertical spacing follows that visible
+        // half-height instead of the full texture height.
+        var x = HexSize * 1.5f * coord.Q + 70f;
+        var y = TileTextureVisibleHeight * (coord.R + coord.Q / 2f) + 70f;
         return new Vector2(x, y);
+    }
+
+    private static Vector2 HexContentToPixel(HexCoord coord)
+    {
+        return HexToPixel(coord) + new Vector2(0f, TileTextureVisibleCenterYOffset);
     }
 
     private static HexCoord PixelToHex(Vector2 point)
     {
-        // This is the inverse of HexToPixel for pointy-top axial hexes. It
+        // This is the inverse of HexToPixel for flat-top axial hexes. It
         // produces fractional q/r values that RoundAxial snaps to a real hex.
         var x = point.X - 70f;
         var y = point.Y - 70f;
-        var q = MathF.Sqrt(3f) / 3f * x / HexSize - 1f / 3f * y / HexSize;
-        var r = 2f / 3f * y / HexSize;
+        var q = 2f / 3f * x / HexSize;
+        var r = y / TileTextureVisibleHeight - q / 2f;
         return RoundAxial(q, r);
     }
 

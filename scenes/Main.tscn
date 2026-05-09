@@ -1,6 +1,16 @@
-[gd_scene load_steps=2 format=3 uid="uid://b5uc8gqevp4jp"]
+[gd_scene format=3 uid="uid://b5uc8gqevp4jp"]
 
-[ext_resource type="Script" path="res://src/Game/Presentation/MainGame.cs" id="1_main"]
+[ext_resource type="Script" uid="uid://xo84kkfpy3cj" path="res://src/Game/Presentation/MainGame.cs" id="1_main"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=971186098]
 script = ExtResource("1_main")
+
+[node name="Terrain" type="Node2D" parent="." unique_id=1183140026]
+
+[node name="Features" type="Node2D" parent="."]
+
+[node name="Resources" type="Node2D" parent="."]
+
+[node name="Locations" type="Node2D" parent="."]
+
+[node name="Units" type="Node2D" parent="." unique_id=1480516108]

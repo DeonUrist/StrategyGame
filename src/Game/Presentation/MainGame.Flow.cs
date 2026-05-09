@@ -162,7 +162,7 @@ public partial class MainGame
         }
 
         UpdatePanel();
-        RequestDynamicRedraw();
+        SyncDynamicObjects();
     }
 
     private void DetachSelectedLeader()
@@ -194,14 +194,14 @@ public partial class MainGame
                         GameRules.TryDetachAgentFromStack(state, id);
                         _actionMenuPanel.Visible = false;
                         UpdatePanel(state.Map.Get(stack.Coord));
-                        RequestDynamicRedraw();
+                        SyncDynamicObjects();
                     })))
                     .ToList());
             return;
         }
 
         UpdatePanel(state.Stacks.TryGetValue(stackId, out var updatedStack) ? state.Map.Get(updatedStack.Coord) : null);
-        RequestDynamicRedraw();
+        SyncDynamicObjects();
     }
 
     private void AttachSelectedAgentToArmy()
@@ -234,7 +234,7 @@ public partial class MainGame
             _actionMenuPanel.Visible = false;
             UpdatePanel(state.Map.Get(stacks[0].Coord));
             ComputeSelectedRange(state);
-            RequestDynamicRedraw();
+            SyncDynamicObjects();
             return;
         }
 
@@ -247,7 +247,7 @@ public partial class MainGame
                  _actionMenuPanel.Visible = false;
                  UpdatePanel(state.Map.Get(stack.Coord));
                  ComputeSelectedRange(state);
-                 RequestDynamicRedraw();
+                 SyncDynamicObjects();
              }))).ToList());
     }
 
@@ -261,6 +261,12 @@ public partial class MainGame
         _gearMenuPanel.Visible = !_gearMenuPanel.Visible;
         _actionMenuPanel.Visible = false;
         _exitConfirmOverlay.Visible = false;
+    }
+
+    private void ToggleGrid()
+    {
+        _gridVisible = !_gridVisible;
+        SetGridVisible(_gridVisible);
     }
 
     private void PromptExitWithoutSave()

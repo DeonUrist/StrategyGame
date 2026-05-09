@@ -6,9 +6,12 @@ namespace StrategyGame.Presentation;
 public partial class MainGame : Node2D
 {
     // This partial class is split by responsibility: startup/shared fields here,
-    // input in MainGame.Input, UI construction/flow in MainGame.Ui/Flow, drawing
-    // in MainGame.Drawing, and coordinate math in MainGame.HexMath.
+    // input in MainGame.Input, UI construction/flow in MainGame.Ui/Flow, map
+    // node sync in MainGame.Layers, and coordinate math in MainGame.HexMath.
     private const float HexSize = 28f;
+    private const float DefaultCameraZoom = 1.5f;
+    private const float MinCameraZoom = 0.75f;
+    private const float MaxCameraZoom = 5.0f;
 
     private readonly FactionDirector _director = new();
     private GameDatabase _database = null!;
@@ -27,6 +30,7 @@ public partial class MainGame : Node2D
     private Button _detachLeaderButton = null!;
     private Button _endTurnButton = null!;
     private Button _gearButton = null!;
+    private Button _toggleGridButton = null!;
     private Button _logToggleButton = null!;
     private Control _actionMenuPanel = null!;
     private Control _gearMenuPanel = null!;
@@ -52,7 +56,9 @@ public partial class MainGame : Node2D
     private int? _selectedAgentId;
     private HexCoord? _inspectedTileCoord;
     private bool _isLogCollapsed;
+    private bool _gridVisible = true;
     private Dictionary<HexCoord, double> _selectedRange = [];
+    private bool _mapInputLocked;
 
     // Range cache: reuse the last Dijkstra result when the unit and map are unchanged.
     // IsStack distinguishes stack vs agent IDs (both int, different namespaces).
@@ -72,7 +78,7 @@ public partial class MainGame : Node2D
         _database = GameDatabase.LoadFromDirectory(dataPath);
         _savePath = ProjectSettings.GlobalizePath("user://strategy-save.json");
 
-        _camera = new Camera2D { Enabled = true, Position = new Vector2(470, 340), Zoom = new Vector2(0.9f, 0.9f) };
+        _camera = new Camera2D { Enabled = true, Position = new Vector2(470, 340), Zoom = new Vector2(DefaultCameraZoom, DefaultCameraZoom) };
         AddChild(_camera);
 
         InitDrawLayers();
@@ -85,5 +91,6 @@ public partial class MainGame : Node2D
         _selectedStackId = null;
         _selectedAgentId = null;
         _selectedRange = [];
+        UpdateSelectionHighlights();
     }
 }

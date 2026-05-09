@@ -273,6 +273,11 @@ public partial class MainGame
         saveAndExit.Pressed += SaveAndExitFromMenu;
         box.AddChild(saveAndExit);
 
+        _toggleGridButton = new Button { Text = "Toggle Grid" };
+        ApplyButtonChrome(_toggleGridButton);
+        _toggleGridButton.Pressed += ToggleGrid;
+        box.AddChild(_toggleGridButton);
+
         var exit = new Button { Text = "Exit" };
         ApplyButtonChrome(exit);
         exit.Pressed += PromptExitWithoutSave;
