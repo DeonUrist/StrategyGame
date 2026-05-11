@@ -316,7 +316,7 @@ public partial class MainGame
 
         var panel = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(380, 260)
+            CustomMinimumSize = new Vector2(430, 360)
         };
         ApplyPanelChrome(panel);
         center.AddChild(panel);
@@ -389,12 +389,102 @@ public partial class MainGame
         };
         speedRow.AddChild(speed);
 
+        box.AddChild(new HSeparator());
+        box.AddChild(new Label
+        {
+            Text = "Controls",
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+
+        var header = new HBoxContainer();
+        box.AddChild(header);
+        header.AddChild(new Label { Text = "", CustomMinimumSize = new Vector2(150, 0) });
+        header.AddChild(new Label { Text = "1st", CustomMinimumSize = new Vector2(90, 0), HorizontalAlignment = HorizontalAlignment.Center });
+        header.AddChild(new Label { Text = "2nd", CustomMinimumSize = new Vector2(90, 0), HorizontalAlignment = HorizontalAlignment.Center });
+
+        var openMenuRow = BuildControlBindingRow("Open Menu", KeyLabel(_settings.KeyBindings.OpenMenuPrimary), false);
+        _openMenuSecondaryButton = BuildBindingButton(_settings.KeyBindings.OpenMenuSecondary, () => BeginKeyBindingCapture("OpenMenuSecondary"));
+        openMenuRow.AddChild(_openMenuSecondaryButton);
+        box.AddChild(openMenuRow);
+
+        var recenterRow = BuildControlBindingRow("Recenter", null, true);
+        _recenterPrimaryButton = BuildBindingButton(_settings.KeyBindings.RecenterPrimary, () => BeginKeyBindingCapture("RecenterPrimary"));
+        _recenterSecondaryButton = BuildBindingButton(_settings.KeyBindings.RecenterSecondary, () => BeginKeyBindingCapture("RecenterSecondary"));
+        recenterRow.AddChild(_recenterPrimaryButton);
+        recenterRow.AddChild(_recenterSecondaryButton);
+        box.AddChild(recenterRow);
+
         var close = new Button { Text = "Close" };
         ApplyButtonChrome(close);
         close.Pressed += HideOptionsPanel;
         box.AddChild(close);
 
         return root;
+    }
+
+    private HBoxContainer BuildControlBindingRow(string label, string? lockedPrimaryText, bool primaryEditable)
+    {
+        var row = new HBoxContainer();
+        row.AddChild(new Label
+        {
+            Text = label,
+            CustomMinimumSize = new Vector2(150, 0)
+        });
+
+        if (!primaryEditable)
+        {
+            var primary = new Button
+            {
+                Text = lockedPrimaryText ?? "-",
+                Disabled = true,
+                CustomMinimumSize = new Vector2(90, 28)
+            };
+            ApplyButtonChrome(primary);
+            row.AddChild(primary);
+        }
+
+        return row;
+    }
+
+    private Button BuildBindingButton(int key, Action onPressed)
+    {
+        var button = new Button
+        {
+            Text = KeyLabel(key),
+            CustomMinimumSize = new Vector2(90, 28)
+        };
+        ApplyButtonChrome(button);
+        button.Pressed += onPressed;
+        return button;
+    }
+
+    private void BeginKeyBindingCapture(string binding)
+    {
+        _capturingKeyBinding = binding;
+        RefreshControlBindingButtons();
+    }
+
+    private void RefreshControlBindingButtons()
+    {
+        if (_openMenuSecondaryButton is not null)
+        {
+            _openMenuSecondaryButton.Text = _capturingKeyBinding == "OpenMenuSecondary" ? "Press key..." : KeyLabel(_settings.KeyBindings.OpenMenuSecondary);
+        }
+
+        if (_recenterPrimaryButton is not null)
+        {
+            _recenterPrimaryButton.Text = _capturingKeyBinding == "RecenterPrimary" ? "Press key..." : KeyLabel(_settings.KeyBindings.RecenterPrimary);
+        }
+
+        if (_recenterSecondaryButton is not null)
+        {
+            _recenterSecondaryButton.Text = _capturingKeyBinding == "RecenterSecondary" ? "Press key..." : KeyLabel(_settings.KeyBindings.RecenterSecondary);
+        }
+    }
+
+    private static string KeyLabel(int key)
+    {
+        return key == 0 ? "-" : ((Key)key).ToString();
     }
 
     private Control BuildActionMenu()

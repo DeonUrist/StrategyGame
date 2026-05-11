@@ -1,0 +1,11 @@
+{
+  "id": "humans_soldier",
+  "role": "soldier",
+  "name": "Swordsman",
+  "damage": 5,
+  "health": 10,
+  "armor": 3,
+  "movement": 2,
+  "attackType": "melee",
+  "sprite": "soldier_human"
+}

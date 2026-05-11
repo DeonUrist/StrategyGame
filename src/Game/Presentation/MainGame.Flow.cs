@@ -213,8 +213,13 @@ public partial class MainGame
             return;
         }
 
-        var visible = VisibilityRules.IsMoveVisibleToPlayer(state, origin, destination);
-        var cameraTask = visible ? AnimateCameraToAsync(HexToPixel(destination)) : Task.CompletedTask;
+        var visible = _settings.AnimationSpeed != AnimationSpeedSetting.Immediate
+                      && VisibilityRules.IsMoveVisibleToPlayer(state, origin, destination);
+        if (visible)
+        {
+            await AnimateCameraToAsync(HexToPixel(destination));
+        }
+
         Task unitTask = Task.CompletedTask;
 
         if (step.Kind == AiTurnStepKind.StackMove)
@@ -238,7 +243,7 @@ public partial class MainGame
             }
         }
 
-        await Task.WhenAll(cameraTask, unitTask);
+        await unitTask;
         SyncDynamicObjects();
         await WaitAnimationPauseAsync();
     }
@@ -373,10 +378,14 @@ public partial class MainGame
         _actionMenuPanel.Visible = false;
         _exitConfirmOverlay.Visible = false;
         _optionsPanel.Visible = true;
+        _capturingKeyBinding = null;
+        RefreshControlBindingButtons();
     }
 
     private void HideOptionsPanel()
     {
+        _capturingKeyBinding = null;
+        RefreshControlBindingButtons();
         _optionsPanel.Visible = false;
     }
 

@@ -1,0 +1,11 @@
+{
+  "id": "elves_soldier",
+  "role": "soldier",
+  "name": "Blade Dancer",
+  "damage": 5,
+  "health": 8,
+  "armor": 2,
+  "movement": 4,
+  "attackType": "melee",
+  "sprite": "soldier_elf"
+}

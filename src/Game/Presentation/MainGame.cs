@@ -10,13 +10,15 @@ public partial class MainGame : Node2D
     // node sync in MainGame.Layers, and coordinate math in MainGame.HexMath.
     private const float HexSize = 28f;
     private const float DefaultCameraZoom = 1.5f;
-    private const float MinCameraZoom = 0.75f;
+    private static readonly float[] CameraZoomSteps = [1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 4.0f, 5.0f];
+    private const float MinCameraZoom = 1.0f;
     private const float MaxCameraZoom = 5.0f;
 
     private readonly FactionDirector _director = new();
     private GameDatabase _database = null!;
     private GameState? _state;
     private Camera2D _camera = null!;
+    private Sprite2D? _backgroundSprite;
     private Control _menuRoot = null!;
     private Control _newGameRoot = null!;
     private Control _gameRoot = null!;
@@ -36,6 +38,9 @@ public partial class MainGame : Node2D
     private Control _logPanel = null!;
     private Control _exitConfirmOverlay = null!;
     private Control _optionsPanel = null!;
+    private Button _openMenuSecondaryButton = null!;
+    private Button _recenterPrimaryButton = null!;
+    private Button _recenterSecondaryButton = null!;
     private Label _mapSizeValueLabel = null!;
     private Label _civilizationsValueLabel = null!;
     private Label _wetnessValueLabel = null!;
@@ -67,6 +72,7 @@ public partial class MainGame : Node2D
     private bool _gridVisible = true;
     private Dictionary<HexCoord, double> _selectedRange = [];
     private bool _mapInputLocked;
+    private string? _capturingKeyBinding;
 
     // Range cache: reuse the last Dijkstra result when the unit and map are unchanged.
     // IsStack distinguishes stack vs agent IDs (both int, different namespaces).

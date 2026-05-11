@@ -8,10 +8,27 @@ public interface IHasId { string Id { get; } }
 // They describe what a thing is in the rules database, not a live instance on
 // the board. Runtime state lives in WorldModels.cs.
 public sealed record ResourceDefinition(string Id, string Name) : IHasId;
-public sealed record UnitDefinition(string Id, string Name, string Kind, int Strength, double Movement) : IHasId;
+public sealed record UnitDefinition(
+    string Id,
+    string Role,
+    string Name,
+    int Damage,
+    int Health,
+    int Armor,
+    double Movement,
+    string AttackType,
+    string Sprite) : IHasId;
 public sealed record BuildingDefinition(string Id, List<BuildingLevelDefinition> Levels) : IHasId;
 public sealed record BuildingLevelDefinition(int Level, string Name, string Sprite);
-public sealed record FactionDefinition(string Id, string Type, string Name, string Color, bool IsPlayer, string Description, List<string> CityNames) : IHasId;
+public sealed record FactionDefinition(
+    string Id,
+    string Type,
+    string Name,
+    string Color,
+    bool IsPlayer,
+    string Description,
+    List<string> CityNames,
+    Dictionary<string, int> StartingArmy) : IHasId;
 public sealed record EventDefinition(string Id, string Name, int BaseWeight) : IHasId;
 
 public enum Elevation

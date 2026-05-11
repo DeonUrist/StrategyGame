@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 14;
+    private const int CurrentVersion = 15;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -133,7 +133,7 @@ public static class GameStateSerializer
 
             foreach (var unit in stack.Units)
             {
-                loadedStack.Units.Add(new UnitInstance { TypeId = unit.TypeId, Count = unit.Count });
+                loadedStack.Units.Add(new UnitInstance { TypeId = unit.TypeId });
             }
 
             state.Stacks[loadedStack.Id] = loadedStack;
@@ -226,7 +226,7 @@ public static class GameStateSerializer
                     s.Coord.R,
                     s.MovementLeft,
                     s.JoinedAgentIds.ToList(),
-                    s.Units.Select(u => new UnitSnapshot(u.TypeId, u.Count)).ToList()))
+                    s.Units.Select(u => new UnitSnapshot(u.TypeId)).ToList()))
                 .ToList(),
             Agents = state.Agents.Values
                 .OrderBy(a => a.Id)
@@ -315,7 +315,7 @@ public static class GameStateSerializer
     private sealed record RegionSnapshot(int Id, string Name, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, TemperatureBand Temperature, BaseBiome BaseBiome, string FinalBiomeName);
     private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
     private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, double MovementLeft, List<int> JoinedAgentIds, List<UnitSnapshot> Units);
-    private sealed record UnitSnapshot(string TypeId, int Count);
+    private sealed record UnitSnapshot(string TypeId);
     private sealed record AgentSnapshot(int Id, string FactionId, string TypeId, string Name, int Q, int R, double MovementLeft, int? JoinedStackId);
     private sealed record CitySnapshot(int Id, string Name, string FactionId, int Q, int R, int TownCenterLevel);
     private sealed record LogSnapshot(int Turn, string Text);

@@ -16,6 +16,7 @@ public sealed class PresentationSettings
     public int MusicVolume { get; set; } = 100;
     public bool GridVisible { get; set; } = true;
     public AnimationSpeedSetting AnimationSpeed { get; set; } = AnimationSpeedSetting.Fast;
+    public KeyBindingSettings KeyBindings { get; set; } = new();
 
     public static PresentationSettings Load(string path)
     {
@@ -26,8 +27,11 @@ public sealed class PresentationSettings
 
         try
         {
-            return JsonSerializer.Deserialize<PresentationSettings>(File.ReadAllText(path), new JsonSerializerOptions(JsonSerializerDefaults.Web))
-                   ?? new PresentationSettings();
+            var settings = JsonSerializer.Deserialize<PresentationSettings>(File.ReadAllText(path), new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                           ?? new PresentationSettings();
+            settings.KeyBindings ??= new KeyBindingSettings();
+            settings.KeyBindings.OpenMenuPrimary = (int)Godot.Key.Escape;
+            return settings;
         }
         catch
         {
@@ -48,4 +52,12 @@ public sealed class PresentationSettings
             WriteIndented = true
         }));
     }
+}
+
+public sealed class KeyBindingSettings
+{
+    public int OpenMenuPrimary { get; set; } = (int)Godot.Key.Escape;
+    public int OpenMenuSecondary { get; set; }
+    public int RecenterPrimary { get; set; } = (int)Godot.Key.Space;
+    public int RecenterSecondary { get; set; }
 }

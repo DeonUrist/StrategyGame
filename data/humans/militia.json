@@ -1,0 +1,11 @@
+{
+  "id": "humans_militia",
+  "role": "militia",
+  "name": "Militia",
+  "damage": 3,
+  "health": 8,
+  "armor": 1,
+  "movement": 3,
+  "attackType": "melee",
+  "sprite": "militia_human"
+}

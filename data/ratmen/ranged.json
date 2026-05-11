@@ -1,0 +1,11 @@
+{
+  "id": "ratmen_ranged",
+  "role": "ranged",
+  "name": "Slinger",
+  "damage": 4,
+  "health": 6,
+  "armor": 0,
+  "movement": 4,
+  "attackType": "ranged",
+  "sprite": "ranged_ratman"
+}

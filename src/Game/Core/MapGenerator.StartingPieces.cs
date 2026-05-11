@@ -18,17 +18,15 @@ public static partial class MapGenerator
         var agentId = 1;
         for (var i = 0; i < state.Factions.Count; i++)
         {
-            // Each faction starts with one city, two army stacks, and two agents.
+            // Each faction starts with one city, one authored army stack, and one agent.
             // If the preferred start is water or rugged mountains, FindNearestStart
             // moves it to a flatter passable tile.
             var faction = state.Factions[i];
             var start = FindNearestStart(state, starts[i % starts.Length]);
             var cityName = CityNameGenerator.Generate(state.Database.Factions[faction.Id], seed ^ (i + 1));
             AddCity(state, i + 1, cityName, faction.Id, start);
-            AddStack(state, stackId++, faction.Id, start, ("militia", 8), ("spearmen", 3));
-            AddStack(state, stackId++, faction.Id, start, ("militia", 5), ("spearmen", 2));
-            AddAgent(state, agentId++, faction.Id, i == 0 ? "captain" : "scout", i == 0 ? "Aldren" : $"{faction.Name} Scout", start);
-            AddAgent(state, agentId++, faction.Id, "scout", i == 0 ? "Mira" : $"{faction.Name} Agent", start);
+            AddStack(state, stackId++, faction.Id, start, StartingArmyUnits(state, faction.Id));
+            AddAgent(state, agentId++, faction.Id, UnitIdForRole(state, faction.Id, "agent"), $"{faction.Name} Agent", start);
         }
     }
 
@@ -53,12 +51,12 @@ public static partial class MapGenerator
         state.Map.Get(coord).CityId = id;
     }
 
-    private static void AddStack(GameState state, int id, string factionId, HexCoord coord, params (string TypeId, int Count)[] units)
+    private static void AddStack(GameState state, int id, string factionId, HexCoord coord, IEnumerable<string> units)
     {
         var stack = new StackState { Id = id, FactionId = factionId, Coord = coord };
-        foreach (var unit in units)
+        foreach (var typeId in units)
         {
-            stack.Units.Add(new UnitInstance { TypeId = unit.TypeId, Count = unit.Count });
+            stack.Units.Add(new UnitInstance { TypeId = typeId });
         }
 
         state.Stacks[id] = stack;
@@ -72,5 +70,26 @@ public static partial class MapGenerator
         // id from the tile's AgentIds list.
         state.Agents[id] = new AgentState { Id = id, FactionId = factionId, TypeId = typeId, Name = name, Coord = coord };
         state.Map.Get(coord).AgentIds.Add(id);
+    }
+
+    private static IEnumerable<string> StartingArmyUnits(GameState state, string factionId)
+    {
+        var faction = state.Database.Factions[factionId];
+        foreach (var (role, quantity) in faction.StartingArmy)
+        {
+            var typeId = UnitIdForRole(state, factionId, role);
+            for (var i = 0; i < quantity; i++)
+            {
+                yield return typeId;
+            }
+        }
+    }
+
+    private static string UnitIdForRole(GameState state, string factionId, string role)
+    {
+        return state.Database.Units.Values
+            .Where(unit => string.Equals(unit.Role, role, StringComparison.OrdinalIgnoreCase))
+            .First(unit => unit.Id.StartsWith($"{factionId}_", StringComparison.OrdinalIgnoreCase))
+            .Id;
     }
 }

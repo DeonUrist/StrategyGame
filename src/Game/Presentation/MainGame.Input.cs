@@ -7,6 +7,45 @@ public partial class MainGame
 {
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (@event is InputEventKey { Pressed: true, Echo: false } keyEvent)
+        {
+            if (HandleKeyBindingCapture(keyEvent))
+            {
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (_optionsPanel.Visible)
+            {
+                if (IsOpenMenuKey(keyEvent))
+                {
+                    HandleOpenMenuKey();
+                }
+
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (IsOpenMenuKey(keyEvent))
+            {
+                HandleOpenMenuKey();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (IsRecenterKey(keyEvent))
+            {
+                RecenterCamera();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+        }
+
+        if (@event is InputEventMouseButton or InputEventMouseMotion)
+        {
+            UpdateBackgroundTransform();
+        }
+
         // Godot sends raw input events here after UI controls have had a chance
         // to consume them. That lets buttons work without also clicking the map.
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp })
@@ -21,7 +60,65 @@ public partial class MainGame
 
         if (@event is InputEventMouseMotion motion && (((MouseButtonMask)motion.ButtonMask) & MouseButtonMask.Middle) != 0)
         {
-            _camera.Position -= motion.Relative / _camera.Zoom.X;
+            SetCameraPositionPixelSnapped(_camera.Position - motion.Relative / _camera.Zoom.X);
+        }
+    }
+
+    private bool HandleKeyBindingCapture(InputEventKey keyEvent)
+    {
+        if (_capturingKeyBinding is null)
+        {
+            return false;
+        }
+
+        var key = (int)keyEvent.Keycode;
+        if (_capturingKeyBinding == "OpenMenuSecondary")
+        {
+            _settings.KeyBindings.OpenMenuSecondary = keyEvent.Keycode == Key.Escape ? 0 : key;
+        }
+        else if (_capturingKeyBinding == "RecenterSecondary")
+        {
+            _settings.KeyBindings.RecenterSecondary = keyEvent.Keycode == Key.Escape ? 0 : key;
+        }
+        else if (_capturingKeyBinding == "RecenterPrimary")
+        {
+            _settings.KeyBindings.RecenterPrimary = keyEvent.Keycode == Key.Escape ? 0 : key;
+        }
+
+        _capturingKeyBinding = null;
+        RefreshControlBindingButtons();
+        SavePresentationSettings();
+        return true;
+    }
+
+    private bool IsOpenMenuKey(InputEventKey keyEvent)
+    {
+        return MatchesKey(keyEvent, _settings.KeyBindings.OpenMenuPrimary)
+               || MatchesKey(keyEvent, _settings.KeyBindings.OpenMenuSecondary);
+    }
+
+    private bool IsRecenterKey(InputEventKey keyEvent)
+    {
+        return MatchesKey(keyEvent, _settings.KeyBindings.RecenterPrimary)
+               || MatchesKey(keyEvent, _settings.KeyBindings.RecenterSecondary);
+    }
+
+    private static bool MatchesKey(InputEventKey keyEvent, int key)
+    {
+        return key != 0 && (int)keyEvent.Keycode == key;
+    }
+
+    private void HandleOpenMenuKey()
+    {
+        if (_optionsPanel.Visible)
+        {
+            HideOptionsPanel();
+            return;
+        }
+
+        if (_state is not null)
+        {
+            ToggleGearMenu();
         }
     }
 
@@ -190,13 +287,14 @@ public partial class MainGame
         var (duration, _) = AnimationTiming();
         if (duration <= 0)
         {
-            _camera.Position = destination;
+            SetCameraPositionPixelSnapped(destination);
             return;
         }
 
         var tween = CreateTween();
-        tween.TweenProperty(_camera, "position", destination, duration).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        tween.TweenProperty(_camera, "position", ClampCameraPosition(SnapToCameraPixelGrid(destination)), duration).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
         await ToSignal(tween, Tween.SignalName.Finished);
+        SnapCameraToPixelGrid();
     }
 
     private async Task WaitAnimationPauseAsync()

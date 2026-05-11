@@ -1,0 +1,11 @@
+{
+  "id": "orcs_agent",
+  "role": "agent",
+  "name": "Warchief",
+  "damage": 3,
+  "health": 12,
+  "armor": 2,
+  "movement": 4,
+  "attackType": "melee",
+  "sprite": "agent_orc"
+}

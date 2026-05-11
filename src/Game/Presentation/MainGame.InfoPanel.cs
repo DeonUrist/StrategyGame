@@ -92,7 +92,13 @@ public partial class MainGame
     {
         var faction = _factionById[stack.FactionId];
         var armyName = $"#{stack.Id}";
-        var units = string.Join(", ", stack.Units.Select(unit => $"{unit.Count} {Escape(state.Database.Units[unit.TypeId].Name)}"));
+        var units = string.Join(", ", stack.Units
+            .GroupBy(unit => unit.TypeId)
+            .Select(group =>
+            {
+                var name = Escape(state.Database.Units[group.Key].Name);
+                return group.Count() == 1 ? name : $"{group.Count()} {name}";
+            }));
         var leaderText = stack.JoinedAgentIds.Count == 0
             ? ""
             : $"\nAttached: {string.Join(", ", stack.JoinedAgentIds.Where(state.Agents.ContainsKey).Select(id => AttachedAgentLabel(state, state.Agents[id])))}";
@@ -113,6 +119,7 @@ public partial class MainGame
              + $"\nMoves: {FormatMoves(agent.MovementLeft)}/{FormatMoves(MaxAgentMovement(state, agent))}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
              + $"\nRole: {Escape(unit.Name)}"
+             + $"\nStats: damage {unit.Damage}, health {unit.Health}, armor {unit.Armor}"
              + (agent.JoinedStackId is { } joinedStackId ? $"\nJoined to army {joinedStackId}" : "");
     }
 

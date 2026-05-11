@@ -1,0 +1,11 @@
+{
+  "id": "ratmen_agent",
+  "role": "agent",
+  "name": "Sneak",
+  "damage": 2,
+  "health": 7,
+  "armor": 1,
+  "movement": 5,
+  "attackType": "melee",
+  "sprite": "agent_ratman"
+}

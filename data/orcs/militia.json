@@ -1,0 +1,11 @@
+{
+  "id": "orcs_militia",
+  "role": "militia",
+  "name": "Grunt",
+  "damage": 4,
+  "health": 9,
+  "armor": 1,
+  "movement": 3,
+  "attackType": "melee",
+  "sprite": "militia_orc"
+}

@@ -110,12 +110,11 @@ public sealed class FactionState
     public required bool IsPlayer { get; init; }
 }
 
-// UnitInstance is one line in an army stack, such as "8 militia". Unit stats are
-// looked up by TypeId in GameDatabase.Units so the instance only needs a count.
+// UnitInstance is one unit in an army stack. Repeated entries represent multiple
+// units of the same type; authored stats are looked up by TypeId.
 public sealed class UnitInstance
 {
     public required string TypeId { get; init; }
-    public int Count { get; set; }
 }
 
 // StackState is an army on the map. A stack can contain several unit rows and

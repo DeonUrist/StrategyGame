@@ -5,6 +5,9 @@ namespace StrategyGame.Presentation;
 
 public partial class MainGame
 {
+    private const string BackgroundTexturePath = "res://assets/image/background.png";
+
+    private Node2D _backgroundRoot = null!;
     private Node2D _terrainRoot = null!;
     private Node2D _featuresRoot = null!;
     private Node2D _resourcesRoot = null!;
@@ -19,11 +22,13 @@ public partial class MainGame
 
     private void InitDrawLayers()
     {
+        _backgroundRoot = GetNodeOrCreateLayer("Background", 0);
         _terrainRoot = GetNodeOrCreateLayer("Terrain");
         _featuresRoot = GetNodeOrCreateLayer("Features");
         _resourcesRoot = GetNodeOrCreateLayer("Resources");
         _locationsRoot = GetNodeOrCreateLayer("Locations");
         _unitsRoot = GetNodeOrCreateLayer("Units");
+        SyncBackgroundObject();
     }
 
     private void RequestFullRedraw()
@@ -36,6 +41,7 @@ public partial class MainGame
             ClearLayer(_resourcesRoot);
             ClearLayer(_locationsRoot);
             ClearLayer(_unitsRoot);
+            SyncBackgroundObject();
             _tileViews.Clear();
             _stackViews.Clear();
             _agentViews.Clear();
@@ -47,17 +53,64 @@ public partial class MainGame
         SyncDynamicObjects();
     }
 
-    private Node2D GetNodeOrCreateLayer(string name)
+    private Node2D GetNodeOrCreateLayer(string name, int? childIndex = null)
     {
         if (GetNodeOrNull<Node2D>(name) is { } existing)
         {
+            if (childIndex is { } existingIndex)
+            {
+                MoveChild(existing, existingIndex);
+            }
+
             return existing;
         }
 
         var layer = new Node2D { Name = name };
         AddChild(layer);
-        MoveChild(layer, GetChildCount() - 1);
+        MoveChild(layer, childIndex ?? GetChildCount() - 1);
         return layer;
+    }
+
+    private void SyncBackgroundObject()
+    {
+        if (!ResourceLoader.Exists(BackgroundTexturePath))
+        {
+            ClearLayer(_backgroundRoot);
+            _backgroundSprite = null;
+            return;
+        }
+
+        if (_backgroundSprite is null || !_backgroundRoot.GetChildren().Contains(_backgroundSprite))
+        {
+            ClearLayer(_backgroundRoot);
+            _backgroundSprite = new Sprite2D
+            {
+                Name = "Background",
+                Texture = LoadTexture(BackgroundTexturePath),
+                Centered = true,
+                ZIndex = -1000,
+                ZAsRelative = false,
+                TextureFilter = CanvasItem.TextureFilterEnum.Linear
+            };
+            _backgroundRoot.AddChild(_backgroundSprite);
+        }
+
+        UpdateBackgroundTransform();
+    }
+
+    private void UpdateBackgroundTransform()
+    {
+        if (_backgroundSprite is not { Texture: { } texture } || _camera is null)
+        {
+            return;
+        }
+
+        var viewportSize = GetViewportRect().Size;
+        var worldSize = viewportSize / _camera.Zoom.X;
+        var textureSize = texture.GetSize();
+        var scale = MathF.Max(worldSize.X / textureSize.X, worldSize.Y / textureSize.Y);
+        _backgroundSprite.Position = _camera.Position;
+        _backgroundSprite.Scale = new Vector2(scale, scale);
     }
 
     private static void ClearLayer(Node node)
@@ -166,7 +219,7 @@ public partial class MainGame
             var townCenter = SettlementProgression.CurrentTownCenter(state, city);
             _locationsRoot.AddChild(CreateTileAlignedSprite(
                 $"Location_{city.Id}",
-                $"res://assets/image/locations/{NormalizeAssetKey(townCenter.Sprite)}.png",
+                LocationSpritePath(state, city, townCenter),
                 HexToPixel(city.Coord)));
             _locationsRoot.AddChild(CreateSettlementLabel(state, city, HexContentToPixel(city.Coord) + new Vector2(0, 8)));
         }
@@ -254,7 +307,7 @@ public partial class MainGame
             for (var i = 0; i < stacks.Count; i++)
             {
                 var stack = stacks[i];
-                var view = GetOrCreateUnitView(_stackViews, stack.Id, $"Stack_{stack.Id}", "res://assets/image/units/army.png");
+                var view = GetOrCreateUnitView(_stackViews, stack.Id, $"Stack_{stack.Id}", StackSpritePath(stack));
                 if (movingStackId != stack.Id)
                 {
                     view.Position = HexToPixel(stack.Coord) + PieceOffset(i, stacks.Count);
@@ -270,7 +323,7 @@ public partial class MainGame
             for (var i = 0; i < agents.Count; i++)
             {
                 var agent = agents[i];
-                var view = GetOrCreateUnitView(_agentViews, agent.Id, $"Agent_{agent.Id}", "res://assets/image/units/agent.png");
+                var view = GetOrCreateUnitView(_agentViews, agent.Id, $"Agent_{agent.Id}", AgentSpritePath(state, agent));
                 if (movingAgentId != agent.Id)
                 {
                     view.Position = HexToPixel(agent.Coord) + PieceOffset(i, agents.Count);
@@ -436,6 +489,38 @@ public partial class MainGame
     private static string NormalizeAssetKey(string value)
     {
         return value.Trim().ToLowerInvariant().Replace(" ", "_").Replace("-", "_");
+    }
+
+    private static string LocationSpritePath(GameState state, CityState city, BuildingLevelDefinition townCenter)
+    {
+        var key = NormalizeAssetKey(townCenter.Sprite);
+        var factionPath = $"res://assets/image/locations/{key}_{FactionSpriteSuffix(city.FactionId)}.png";
+        return ResourceLoader.Exists(factionPath) ? factionPath : $"res://assets/image/locations/{key}.png";
+    }
+
+    private static string StackSpritePath(StackState stack)
+    {
+        return $"res://assets/image/units/army_{FactionSpriteSuffix(stack.FactionId)}.png";
+    }
+
+    private static string AgentSpritePath(GameState state, AgentState agent)
+    {
+        var key = NormalizeAssetKey(state.Database.Units[agent.TypeId].Sprite);
+        return $"res://assets/image/units/{key}.png";
+    }
+
+    private static string FactionSpriteSuffix(string factionId)
+    {
+        return NormalizeAssetKey(factionId) switch
+        {
+            "humans" => "human",
+            "orcs" => "orc",
+            "undead" => "undead",
+            "ratmen" => "ratman",
+            "elves" => "elf",
+            "dwarves" => "dwarf",
+            var normalized => normalized
+        };
     }
 
     private static string TerrainAssetKey(string terrainName)

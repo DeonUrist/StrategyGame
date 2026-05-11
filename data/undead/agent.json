@@ -1,0 +1,11 @@
+{
+  "id": "undead_agent",
+  "role": "agent",
+  "name": "Necromancer",
+  "damage": 3,
+  "health": 9,
+  "armor": 1,
+  "movement": 4,
+  "attackType": "ranged",
+  "sprite": "agent_undead"
+}

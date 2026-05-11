@@ -1,0 +1,11 @@
+{
+  "id": "elves_agent",
+  "role": "agent",
+  "name": "Wayfinder",
+  "damage": 2,
+  "health": 8,
+  "armor": 1,
+  "movement": 5,
+  "attackType": "ranged",
+  "sprite": "agent_elf"
+}

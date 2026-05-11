@@ -56,12 +56,32 @@ void DatabaseLoadsRequiredCatalogs()
     Assert(database.Resources.ContainsKey("silver"), "silver resource missing");
     Assert(database.Resources.ContainsKey("game"), "game resource missing");
     Assert(!File.Exists(Path.Combine(root, "data", "resources.json")), "resources should be code-defined, not JSON-authored");
-    Assert(database.Units.ContainsKey("captain"), "captain unit missing");
+    Assert(!File.Exists(Path.Combine(root, "data", "units.json")), "units should be faction-folder authored, not a flat JSON catalog");
+    Assert(database.Units.ContainsKey("humans_agent"), "human agent unit missing");
+    Assert(database.Units.Count == 24, "six factions should each define militia, soldier, ranged, and agent units");
+    Assert(database.Units.Values.All(unit => unit.Damage >= 0 && unit.Health > 0 && unit.Movement > 0), "unit stats should load from JSON");
     Assert(database.Buildings[SettlementProgression.TownCenterId].Levels.Count == 6, "TownCenter should define six settlement levels");
     Assert(database.Buildings[SettlementProgression.TownCenterId].Levels[0].Name == "Campsite", "TownCenter should start at campsite");
     Assert(database.Buildings[SettlementProgression.TownCenterId].Levels[2].Sprite == "homestead", "TownCenter homestead level should use homestead sprite");
     Assert(database.Factions.Count == 6, "six faction type definitions expected");
+    Assert(database.Factions.Keys.Order().SequenceEqual(["dwarves", "elves", "humans", "orcs", "ratmen", "undead"]), "factions should use simple race ids");
+    Assert(database.Factions.Values.All(f => f.Name == f.Type), "factions should use simple visible names");
     Assert(database.Factions.Values.All(f => f.CityNames.Count > 0), "each faction should provide editable city names");
+    Assert(database.Factions.Values.All(f => f.StartingArmy.Count > 0), "each faction should define a starting army");
+    foreach (var faction in database.Factions.Values)
+    {
+        var folder = Path.Combine(root, "data", faction.Id);
+        Assert(Directory.Exists(folder), $"{faction.Id} unit folder missing");
+        foreach (var role in new[] { "militia", "soldier", "ranged", "agent" })
+        {
+            Assert(database.Units.Values.Any(unit => unit.Id.StartsWith($"{faction.Id}_", StringComparison.OrdinalIgnoreCase) && unit.Role == role), $"{faction.Id} {role} unit missing");
+        }
+
+        var suffix = FactionSpriteSuffix(faction.Id);
+        Assert(File.Exists(Path.Combine(root, "assets", "image", "units", $"army_{suffix}.png")), $"{faction.Id} army sprite placeholder missing");
+        Assert(File.Exists(Path.Combine(root, "assets", "image", "units", $"agent_{suffix}.png")), $"{faction.Id} agent sprite placeholder missing");
+        Assert(File.Exists(Path.Combine(root, "assets", "image", "locations", $"campsite_{suffix}.png")), $"{faction.Id} campsite sprite placeholder missing");
+    }
     Assert(database.Events.ContainsKey("attack_enemy"), "attack event missing");
 }
 
@@ -327,8 +347,17 @@ void ElevationVarianceControlsRuggedTerrain()
 void FactionsStartOnPassableIslandTiles()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    Assert(state.StacksForFaction(state.PlayerFaction.Id).Count() == 2, "player should start with two army stacks");
-    Assert(state.AgentsForFaction(state.PlayerFaction.Id).Count() == 2, "player should start with two loose agents");
+    Assert(state.StacksForFaction(state.PlayerFaction.Id).Count() == 1, "player should start with one army stack");
+    Assert(state.AgentsForFaction(state.PlayerFaction.Id).Count() == 1, "player should start with one loose agent");
+    foreach (var faction in state.Factions)
+    {
+        var stack = state.StacksForFaction(faction.Id).Single();
+        var expectedCount = database.Factions[faction.Id].StartingArmy.Values.Sum();
+        Assert(stack.Units.Count == expectedCount, $"{faction.Id} starting army should follow factions.json");
+        Assert(stack.Units.All(unit => unit.TypeId.StartsWith($"{faction.Id}_", StringComparison.OrdinalIgnoreCase)), $"{faction.Id} stack should use faction unit ids");
+        var agent = state.AgentsForFaction(faction.Id).Single();
+        Assert(agent.TypeId == $"{faction.Id}_agent", $"{faction.Id} agent should use faction agent unit");
+    }
 
     foreach (var city in state.Cities.Values)
     {
@@ -438,7 +467,7 @@ void CombatRemovesLosingStack()
     leader.Coord = defender.Coord;
     GameRules.TryJoinAgentToStack(state, leader.Id, defender.Id);
     defender.Units.Clear();
-    defender.Units.Add(new UnitInstance { TypeId = "militia", Count = 1 });
+    defender.Units.Add(new UnitInstance { TypeId = $"{enemyFactionId}_militia" });
 
     CombatResolver.Resolve(state, attacker, defender);
     Assert(state.Stacks.ContainsKey(attacker.Id), "attacker should survive favorable combat");
@@ -592,17 +621,20 @@ void CombatAppliesCasualtiesToWinner()
     var defender = state.StacksForFaction(enemyFactionId).First();
 
     attacker.Units.Clear();
-    attacker.Units.Add(new UnitInstance { TypeId = "spearmen", Count = 20 });
+    for (var i = 0; i < 20; i++)
+    {
+        attacker.Units.Add(new UnitInstance { TypeId = "humans_soldier" });
+    }
     defender.Units.Clear();
-    defender.Units.Add(new UnitInstance { TypeId = "militia", Count = 1 });
+    defender.Units.Add(new UnitInstance { TypeId = $"{enemyFactionId}_militia" });
 
-    var countBefore = attacker.Units[0].Count;
+    var countBefore = attacker.Units.Count;
     CombatResolver.Resolve(state, attacker, defender);
 
     Assert(state.Stacks.ContainsKey(attacker.Id), "dominant attacker should survive");
     Assert(!state.Stacks.ContainsKey(defender.Id), "weak defender should be removed");
     var expected = Math.Max(1, (int)Math.Round(countBefore * 0.75));
-    Assert(attacker.Units[0].Count == expected, $"winner should lose 25% of its units: {countBefore} → {expected}");
+    Assert(attacker.Units.Count == expected, $"winner should lose 25% of its units: {countBefore} -> {expected}");
 }
 
 void MoveStackFailsForInvalidDestination()
@@ -722,6 +754,20 @@ bool IsAllowedLandTerrain(string name)
         or "Badlands"
         or "Prairie"
         or "Jungle";
+}
+
+string FactionSpriteSuffix(string factionId)
+{
+    return factionId switch
+    {
+        "humans" => "human",
+        "orcs" => "orc",
+        "undead" => "undead",
+        "ratmen" => "ratman",
+        "elves" => "elf",
+        "dwarves" => "dwarf",
+        _ => factionId
+    };
 }
 
 bool DesertRegionsAreBroad(GameState state)

@@ -9,9 +9,9 @@ public static class CombatResolver
             return;
         }
 
-        // Combat is currently a one-step strategic autoresolve:
-        // compare total army strength, add defender terrain/city bonuses, remove
-        // the losing stack, and apply light casualties to the winner.
+        // Combat is currently a one-step strategic autoresolve: derive each
+        // unit's power from JSON stats, add defender bonuses, remove the loser,
+        // and apply light casualties to the winner.
         var attack = StackStrength(state, attacker);
         var defense = StackStrength(state, defender) + DefenseBonus(state, defender.Coord);
         var attackerWins = attack >= defense;
@@ -29,7 +29,12 @@ public static class CombatResolver
 
     public static int StackStrength(GameState state, StackState stack)
     {
-        return stack.Units.Sum(u => state.Database.Units[u.TypeId].Strength * u.Count);
+        return stack.Units.Sum(u => UnitPower(state.Database.Units[u.TypeId]));
+    }
+
+    public static int UnitPower(UnitDefinition unit)
+    {
+        return Math.Max(1, unit.Damage + unit.Armor + unit.Health / 2);
     }
 
     private static int DefenseBonus(GameState state, HexCoord coord)
@@ -44,11 +49,11 @@ public static class CombatResolver
 
     private static void ApplyCasualties(GameState state, StackState stack, double fraction)
     {
-        // Casualties are proportional but never reduce a surviving unit row below
-        // one. That keeps the winning stack alive and easy to reason about.
-        foreach (var unit in stack.Units)
+        // Casualties are proportional but never remove the final surviving unit.
+        var keepCount = Math.Max(1, (int)Math.Round(stack.Units.Count * (1.0 - fraction)));
+        while (stack.Units.Count > keepCount)
         {
-            unit.Count = Math.Max(1, (int)Math.Round(unit.Count * (1.0 - fraction)));
+            stack.Units.RemoveAt(stack.Units.Count - 1);
         }
     }
 

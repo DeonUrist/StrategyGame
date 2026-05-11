@@ -1,0 +1,11 @@
+{
+  "id": "undead_soldier",
+  "role": "soldier",
+  "name": "Grave Guard",
+  "damage": 5,
+  "health": 11,
+  "armor": 3,
+  "movement": 2,
+  "attackType": "melee",
+  "sprite": "soldier_undead"
+}

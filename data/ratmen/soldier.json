@@ -1,0 +1,11 @@
+{
+  "id": "ratmen_soldier",
+  "role": "soldier",
+  "name": "Tunnel Guard",
+  "damage": 4,
+  "health": 8,
+  "armor": 2,
+  "movement": 3,
+  "attackType": "melee",
+  "sprite": "soldier_ratman"
+}

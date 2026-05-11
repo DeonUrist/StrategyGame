@@ -1,6 +1,0 @@
-[
-  { "id": "militia", "name": "Militia", "kind": "Army", "strength": 3, "movement": 3 },
-  { "id": "spearmen", "name": "Spearmen", "kind": "Army", "strength": 5, "movement": 2 },
-  { "id": "scout", "name": "Scout", "kind": "Agent", "strength": 1, "movement": 4 },
-  { "id": "captain", "name": "Captain", "kind": "Agent", "strength": 2, "movement": 3 }
-]

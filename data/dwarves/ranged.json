@@ -1,0 +1,11 @@
+{
+  "id": "dwarves_ranged",
+  "role": "ranged",
+  "name": "Crossbow",
+  "damage": 5,
+  "health": 9,
+  "armor": 2,
+  "movement": 2,
+  "attackType": "ranged",
+  "sprite": "ranged_dwarf"
+}
