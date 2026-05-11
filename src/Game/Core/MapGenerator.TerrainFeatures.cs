@@ -185,7 +185,7 @@ public static partial class MapGenerator
                 continue;
             }
 
-            if (tile.Elevation is Elevation.Mountains or Elevation.Peaks && random.NextDouble() < 0.08)
+            if (tile.Elevation == Elevation.Mountains && random.NextDouble() < 0.08)
             {
                 tile.FeatureIds.Add("volcano");
             }

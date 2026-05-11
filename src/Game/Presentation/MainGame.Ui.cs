@@ -22,6 +22,9 @@ public partial class MainGame
 
         _gameRoot = BuildGameHud();
         canvas.AddChild(_gameRoot);
+
+        _optionsPanel = BuildOptionsPanel();
+        canvas.AddChild(_optionsPanel);
     }
 
     private Control BuildMainMenu()
@@ -59,6 +62,11 @@ public partial class MainGame
         _loadGameButton.Pressed += LoadGameFromMenu;
         box.AddChild(_loadGameButton);
 
+        var options = new Button { Text = "Options" };
+        ApplyButtonChrome(options);
+        options.Pressed += ShowOptionsPanel;
+        box.AddChild(options);
+
         var exit = new Button { Text = "Exit" };
         ApplyButtonChrome(exit);
         exit.Pressed += () => GetTree().Quit();
@@ -78,7 +86,7 @@ public partial class MainGame
 
         var panel = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(470, 430)
+            CustomMinimumSize = new Vector2(470, 462)
         };
         ApplyPanelChrome(panel);
         center.AddChild(panel);
@@ -93,6 +101,7 @@ public partial class MainGame
         });
 
         _mapSizeSlider = AddSlider(box, "Map size", WorldGenerationSettings.MinMapSize, WorldGenerationSettings.MaxMapSize, 16, WorldGenerationSettings.DefaultMapSize, out _mapSizeValueLabel, FormatMapSize);
+        _civilizationsSlider = AddSlider(box, "Civilizations", WorldGenerationSettings.MinCivilizations, WorldGenerationSettings.MaxCivilizations, 1, WorldGenerationSettings.DefaultCivilizations, out _civilizationsValueLabel, v => $"{(int)v}");
         _wetnessSlider = AddSlider(box, "Wetness", 0, 100, 1, 50, out _wetnessValueLabel, v => $"{(int)v}%");
         _grasslandShrublandSlider = AddSlider(box, "Grassland 0 - 100 Shrubland", 0, 100, 1, 35, out _grasslandShrublandValueLabel, v => $"{(int)v}%");
         _desertBadlandsSlider = AddSlider(box, "Desert 0 - 100 Badlands", 0, 100, 1, 25, out _desertBadlandsValueLabel, v => $"{(int)v}%");
@@ -275,10 +284,10 @@ public partial class MainGame
         saveAndExit.Pressed += SaveAndExitFromMenu;
         box.AddChild(saveAndExit);
 
-        _toggleGridButton = new Button { Text = "Toggle Grid" };
-        ApplyButtonChrome(_toggleGridButton);
-        _toggleGridButton.Pressed += ToggleGrid;
-        box.AddChild(_toggleGridButton);
+        var options = new Button { Text = "Options" };
+        ApplyButtonChrome(options);
+        options.Pressed += ShowOptionsPanel;
+        box.AddChild(options);
 
         var exit = new Button { Text = "Exit" };
         ApplyButtonChrome(exit);
@@ -286,6 +295,106 @@ public partial class MainGame
         box.AddChild(exit);
 
         return panel;
+    }
+
+    private Control BuildOptionsPanel()
+    {
+        var root = BuildFullscreenRoot();
+        root.Visible = false;
+        root.MouseFilter = Control.MouseFilterEnum.Stop;
+
+        var shade = new ColorRect
+        {
+            Color = new Color(0, 0, 0, 0.45f)
+        };
+        shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        root.AddChild(shade);
+
+        var center = new CenterContainer();
+        center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        root.AddChild(center);
+
+        var panel = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(380, 260)
+        };
+        ApplyPanelChrome(panel);
+        center.AddChild(panel);
+
+        var box = new VBoxContainer();
+        panel.AddChild(box);
+
+        box.AddChild(new Label
+        {
+            Text = "Options",
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+
+        AddSlider(box, "Effects", 0, 100, 1, _settings.EffectsVolume, out _, v => $"{(int)v}%")
+            .ValueChanged += value =>
+            {
+                _settings.EffectsVolume = (int)value;
+                SavePresentationSettings();
+            };
+
+        AddSlider(box, "Music", 0, 100, 1, _settings.MusicVolume, out _, v => $"{(int)v}%")
+            .ValueChanged += value =>
+            {
+                _settings.MusicVolume = (int)value;
+                SavePresentationSettings();
+            };
+
+        var grid = new CheckBox
+        {
+            Text = "Grid",
+            ButtonPressed = _settings.GridVisible
+        };
+        grid.Toggled += enabled =>
+        {
+            _settings.GridVisible = enabled;
+            _gridVisible = enabled;
+            SavePresentationSettings();
+            SetGridVisible(enabled);
+        };
+        box.AddChild(grid);
+
+        var speedRow = new HBoxContainer();
+        box.AddChild(speedRow);
+        speedRow.AddChild(new Label
+        {
+            Text = "Animation speed",
+            CustomMinimumSize = new Vector2(160, 0)
+        });
+
+        var speed = new OptionButton
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        var speedOptions = new[]
+        {
+            AnimationSpeedSetting.Slow,
+            AnimationSpeedSetting.Medium,
+            AnimationSpeedSetting.Fast,
+            AnimationSpeedSetting.Immediate
+        };
+        foreach (var option in speedOptions)
+        {
+            speed.AddItem(option.ToString(), (int)option);
+        }
+        speed.Select(Array.IndexOf(speedOptions, _settings.AnimationSpeed));
+        speed.ItemSelected += index =>
+        {
+            _settings.AnimationSpeed = (AnimationSpeedSetting)speed.GetItemId((int)index);
+            SavePresentationSettings();
+        };
+        speedRow.AddChild(speed);
+
+        var close = new Button { Text = "Close" };
+        ApplyButtonChrome(close);
+        close.Pressed += HideOptionsPanel;
+        box.AddChild(close);
+
+        return root;
     }
 
     private Control BuildActionMenu()

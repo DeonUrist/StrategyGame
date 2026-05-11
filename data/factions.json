@@ -1,5 +1,56 @@
 [
-  { "id": "player", "name": "Blue Banner", "color": "#3f7ef5", "isPlayer": true },
-  { "id": "ember", "name": "Ember Court", "color": "#d45a3a", "isPlayer": false },
-  { "id": "jade", "name": "Jade League", "color": "#2aa876", "isPlayer": false }
+  {
+    "id": "bannerlords",
+    "type": "Bannerlords",
+    "name": "Ashen Banner",
+    "color": "#3f7ef5",
+    "isPlayer": true,
+    "description": "Oath-bound marcher lords ruling from war camps, toll roads, and weathered keeps.",
+    "cityNames": ["Aldcrest", "Blackford", "Dunmire", "Gravenhold", "Ironvale", "Rookhaven", "Stormwatch", "Vowmarket"]
+  },
+  {
+    "id": "nomads",
+    "type": "Nomads",
+    "name": "Dust Veil Clans",
+    "color": "#c58b3a",
+    "isPlayer": false,
+    "description": "Horse clans and caravan princes who follow salt winds, old stars, and buried water.",
+    "cityNames": ["Akhar Wells", "Duskstep", "Kharuun", "Mirage Hold", "Saltveil", "Serecamp", "Tallowspring", "Windscar"]
+  },
+  {
+    "id": "beastmen",
+    "type": "Beastmen",
+    "name": "Horned Moot",
+    "color": "#8f5a35",
+    "isPlayer": false,
+    "description": "Totem herds and blood-oath tribes gathering around standing stones and bone fires.",
+    "cityNames": ["Bloodroot", "Bramblehorn", "Clawmere", "Gorefen", "Mournhide", "Red Antler", "Thornmaw", "Wolfscree"]
+  },
+  {
+    "id": "ratfolk",
+    "type": "Ratfolk",
+    "name": "Underking Warrens",
+    "color": "#7a6f63",
+    "isPlayer": false,
+    "description": "Burrow courts, scavenger guilds, and plague-lit markets gnawing beneath ruined roads.",
+    "cityNames": ["Blackwarren", "Cinderburrow", "Gnawgate", "Moldmere", "Rusthole", "Slinkmarket", "Tallowden", "Wormvault"]
+  },
+  {
+    "id": "elves",
+    "type": "Elves",
+    "name": "Pale Bough Covenant",
+    "color": "#2aa876",
+    "isPlayer": false,
+    "description": "Fading woodland houses bound to moonlit groves, old griefs, and thorn-crowned law.",
+    "cityNames": ["Briarveil", "Ebonleaf", "Lethir", "Moonhollow", "Palegrove", "Sablebough", "Thornmere", "Vel Ashar"]
+  },
+  {
+    "id": "dwarves",
+    "type": "Dwarves",
+    "name": "Deep Anvil Holds",
+    "color": "#9b6bd3",
+    "isPlayer": false,
+    "description": "Stone-bound clans holding mine shrines, oath vaults, and smoke-black forge halls.",
+    "cityNames": ["Anvildeep", "Barak Gloom", "Coalhearth", "Deepmarch", "Grimdelve", "Ironbarrow", "Kraghold", "Stonewake"]
+  }
 ]

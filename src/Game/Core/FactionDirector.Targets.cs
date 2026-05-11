@@ -76,16 +76,16 @@ public sealed partial class FactionDirector
         return options.Count == 0 ? null : options.OrderBy(c => c.DistanceTo(target)).First();
     }
 
-    private void TryUpgradeCity(GameState state, string factionId, Random random)
+    private int? TryUpgradeCity(GameState state, string factionId, Random random)
     {
         // The director's chosen action can bias movement toward a city, but the
         // actual upgrade still has a chance gate to keep AI turns varied.
         var city = state.Cities.Values.FirstOrDefault(c => c.FactionId == factionId);
         if (city is null || random.NextDouble() > 0.35)
         {
-            return;
+            return null;
         }
 
-        GameRules.TryUpgradeCityBuilding(state, city.Id);
+        return GameRules.TryUpgradeCityBuilding(state, city.Id) ? city.Id : null;
     }
 }

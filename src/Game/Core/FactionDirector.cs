@@ -13,6 +13,13 @@ public sealed partial class FactionDirector
 
     public void TakeTurn(GameState state, string factionId)
     {
+        foreach (var _ in TakeTurnSteps(state, factionId))
+        {
+        }
+    }
+
+    public IEnumerable<AiTurnStep> TakeTurnSteps(GameState state, string factionId)
+    {
         // The director is the simple AI brain for one faction turn.
         //
         // 1. Pick a broad goal from data/events.json, with weights adjusted by
@@ -40,7 +47,17 @@ public sealed partial class FactionDirector
             var target = ChooseStackTarget(state, stack, chosenAction, random);
             if (target is not null)
             {
-                GameRules.TryMoveStack(state, stack.Id, target.Value);
+                var origin = stack.Coord;
+                if (GameRules.TryMoveStack(state, stack.Id, target.Value))
+                {
+                    yield return new AiTurnStep(
+                        AiTurnStepKind.StackMove,
+                        stack.Id,
+                        factionId,
+                        origin,
+                        target.Value,
+                        state.Stacks.ContainsKey(stack.Id));
+                }
             }
         }
 
@@ -51,11 +68,25 @@ public sealed partial class FactionDirector
             var target = ChooseScoutTarget(state, agent.Coord, agent.MovementLeft, random);
             if (target is not null)
             {
-                GameRules.TryMoveAgent(state, agent.Id, target.Value);
+                var origin = agent.Coord;
+                if (GameRules.TryMoveAgent(state, agent.Id, target.Value))
+                {
+                    yield return new AiTurnStep(
+                        AiTurnStepKind.AgentMove,
+                        agent.Id,
+                        factionId,
+                        origin,
+                        target.Value,
+                        state.Agents.ContainsKey(agent.Id));
+                }
             }
         }
 
-        TryUpgradeCity(state, factionId, random);
+        var upgradedCityId = TryUpgradeCity(state, factionId, random);
+        if (upgradedCityId is not null)
+        {
+            yield return new AiTurnStep(AiTurnStepKind.CityUpgrade, upgradedCityId.Value, factionId, null, null, true);
+        }
     }
 
     private int TurnSeed(GameState state, string factionId)

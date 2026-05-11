@@ -11,6 +11,7 @@ var tests = new (string Name, Action Test)[]
     ("terrain movement costs use terrain and elevation", TerrainMovementCostsUseTerrainAndElevation),
     ("terrain variant sliders control generated pairs", TerrainVariantSlidersControlGeneratedPairs),
     ("sandbox respects custom map size", SandboxRespectsCustomMapSize),
+    ("civilizations slider controls faction count", CivilizationsSliderControlsFactionCount),
     ("sandbox generation is deterministic", SandboxGenerationIsDeterministic),
     ("sandbox has ocean border and region climate bands", SandboxHasOceanBorderAndRegionClimateBands),
     ("sandbox has inland lakes and elevation features", SandboxHasInlandLakesAndElevationFeatures),
@@ -22,7 +23,9 @@ var tests = new (string Name, Action Test)[]
     ("city building upgrade replaces previous level", CityBuildingUpgradeReplacesPreviousLevel),
     ("combat removes losing stack", CombatRemovesLosingStack),
     ("director produces valid AI state", DirectorProducesValidAiState),
+    ("stepwise director matches synchronous turn", StepwiseDirectorMatchesSynchronousTurn),
     ("save load preserves game state", SaveLoadPreservesGameState),
+    ("fog visibility rules gate player vision", FogVisibilityRulesGatePlayerVision),
     ("loaded AI turn replays deterministically", LoadedAiTurnReplaysDeterministically),
     ("movement overspend allows last step", MovementOverspendAllowsLastStep),
     ("turn cycling advances faction and counts turns", TurnCyclingAdvancesFactionAndCountsTurns),
@@ -54,8 +57,11 @@ void DatabaseLoadsRequiredCatalogs()
     Assert(database.Resources.ContainsKey("game"), "game resource missing");
     Assert(!File.Exists(Path.Combine(root, "data", "resources.json")), "resources should be code-defined, not JSON-authored");
     Assert(database.Units.ContainsKey("captain"), "captain unit missing");
-    Assert(database.Buildings["campsite"].UpgradesTo == "shelter", "building chain should start campsite -> shelter");
-    Assert(database.Factions.Values.Count(f => f.IsPlayer) == 1, "exactly one player faction expected");
+    Assert(database.Buildings[SettlementProgression.TownCenterId].Levels.Count == 6, "TownCenter should define six settlement levels");
+    Assert(database.Buildings[SettlementProgression.TownCenterId].Levels[0].Name == "Campsite", "TownCenter should start at campsite");
+    Assert(database.Buildings[SettlementProgression.TownCenterId].Levels[2].Sprite == "homestead", "TownCenter homestead level should use homestead sprite");
+    Assert(database.Factions.Count == 6, "six faction type definitions expected");
+    Assert(database.Factions.Values.All(f => f.CityNames.Count > 0), "each faction should provide editable city names");
     Assert(database.Events.ContainsKey("attack_enemy"), "attack event missing");
 }
 
@@ -144,6 +150,20 @@ void SandboxRespectsCustomMapSize()
     var noSea = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings { MaxSeaNumber = 0 });
     Assert(noSea.WorldGeneration.MaxSeaNumber == 0, "state should retain requested max sea number");
     Assert(noSea.Map.Tiles.All(t => TerrainResolver.Resolve(noSea, t).Name != "Sea"), "max sea number zero should generate no seas");
+}
+
+void CivilizationsSliderControlsFactionCount()
+{
+    var solo = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings { Civilizations = 1 });
+    var full = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings { Civilizations = 6 });
+
+    Assert(solo.Factions.Count == 1, "one civilization should create only the player faction");
+    Assert(solo.Factions.Count(f => f.IsPlayer) == 1, "solo game should still have one player faction");
+    Assert(solo.Cities.Count == 1, "one civilization should create one starting settlement");
+    Assert(full.Factions.Count == 6, "six civilizations should use every faction type");
+    Assert(full.Factions.Select(f => f.Id).Distinct().Count() == 6, "generated civilizations should not repeat faction types");
+    Assert(full.Factions.Count(f => f.IsPlayer) == 1, "generated world should have exactly one player faction");
+    Assert(full.Cities.Count == 6, "each civilization should start with one settlement");
 }
 
 void TerrainVariantSlidersControlGeneratedPairs()
@@ -283,7 +303,7 @@ void SandboxHasInlandLakesAndElevationFeatures()
     Assert(hills.Where(IsRegionEdge).Count() >= hills.Count / 2, "most hills should be placed on region edges");
     Assert(rugged.Any(tile => state.Map.Neighbors(tile.Coord).Any(n => n.Elevation is Elevation.Mountains or Elevation.Peaks)), "rugged tiles should cluster");
     Assert(elevated.All(tile => tile.Moisture == state.Regions[tile.RegionId!.Value].Moisture), "elevation should not dry tile moisture");
-    Assert(state.Map.Tiles.Where(t => t.FeatureIds.Contains("volcano")).All(t => t.Elevation is Elevation.Mountains or Elevation.Peaks), "volcanoes should only appear on mountains or peaks");
+    Assert(state.Map.Tiles.Where(t => t.FeatureIds.Contains("volcano")).All(t => t.Elevation == Elevation.Mountains), "volcanoes should only appear on mountains");
     Assert(state.Map.Tiles.Where(t => t.ResourceId == "game").All(t => TerrainResolver.Resolve(state, t).Passable && TerrainResolver.Resolve(state, t).Name is not "Desert" and not "Badlands" && !TerrainResolver.Resolve(state, t).Name.Contains("Ice", StringComparison.OrdinalIgnoreCase)), "game should not appear in deserts, badlands, or ice terrain");
 
     bool IsRegionEdge(HexTile tile)
@@ -390,21 +410,30 @@ void CityBuildingUpgradeReplacesPreviousLevel()
     var state = MapGenerator.CreateSandbox(database, 42);
     var city = state.Cities.Values.First(c => c.FactionId == state.PlayerFaction.Id);
 
-    Assert(city.BuildingIds.SequenceEqual(["campsite"]), "city should start with only campsite");
+    Assert(city.TownCenterLevel == 0, "city should start as a campsite");
+    Assert(SettlementProgression.DisplayName(state, city) == "Campsite", "campsite should use generic display name");
 
     var upgraded = GameRules.TryUpgradeCityBuilding(state, city.Id);
 
-    Assert(upgraded, "city should upgrade from campsite to shelter");
-    Assert(city.BuildingIds.SequenceEqual(["shelter"]), "shelter should replace campsite instead of being added beside it");
-    Assert(state.Log.Any(entry => entry.Text.Contains("upgraded to Shelter", StringComparison.OrdinalIgnoreCase)), "upgrade should be logged");
+    Assert(upgraded, "city should upgrade from campsite to encampment");
+    Assert(city.TownCenterLevel == 1, "TownCenter level should advance to encampment");
+    Assert(SettlementProgression.DisplayName(state, city) == "Encampment", "encampment should use generic display name");
+
+    upgraded = GameRules.TryUpgradeCityBuilding(state, city.Id);
+
+    Assert(upgraded, "city should upgrade from encampment to homestead");
+    Assert(city.TownCenterLevel == 2, "TownCenter level should advance to homestead");
+    Assert(SettlementProgression.DisplayName(state, city) == city.Name, "homestead and higher should display the generated city name");
+    Assert(state.Log.Any(entry => entry.Text.Contains("upgraded to Homestead", StringComparison.OrdinalIgnoreCase)), "upgrade should be logged");
 }
 
 void CombatRemovesLosingStack()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var attacker = state.StacksForFaction("player").First();
-    var defender = state.StacksForFaction("ember").First();
-    var leader = state.AgentsForFaction("ember").First();
+    var attacker = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var enemyFactionId = state.Factions.First(f => !f.IsPlayer).Id;
+    var defender = state.StacksForFaction(enemyFactionId).First();
+    var leader = state.AgentsForFaction(enemyFactionId).First();
     state.Map.Get(leader.Coord).AgentIds.Remove(leader.Id);
     leader.Coord = defender.Coord;
     GameRules.TryJoinAgentToStack(state, leader.Id, defender.Id);
@@ -434,9 +463,27 @@ void DirectorProducesValidAiState()
     Assert(state.Log.Any(entry => entry.Text.Contains("director chose", StringComparison.OrdinalIgnoreCase)), "director should log weighted action");
 }
 
+void StepwiseDirectorMatchesSynchronousTurn()
+{
+    var synchronous = MapGenerator.CreateSandbox(database, 42);
+    var stepwise = GameStateSerializer.FromJson(database, GameStateSerializer.ToJson(synchronous));
+    GameRules.AdvanceTurn(synchronous);
+    GameRules.AdvanceTurn(stepwise);
+
+    var syncDirector = new FactionDirector();
+    var stepDirector = new FactionDirector();
+    syncDirector.TakeTurn(synchronous, synchronous.CurrentFaction.Id);
+    foreach (var _ in stepDirector.TakeTurnSteps(stepwise, stepwise.CurrentFaction.Id))
+    {
+    }
+
+    Assert(GameStateSerializer.ToJson(stepwise) == GameStateSerializer.ToJson(synchronous), "stepwise AI turn should match synchronous AI turn");
+}
+
 void SaveLoadPreservesGameState()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
+    state.FogOfWarEnabled = true;
     var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
     var agent = state.AgentsForFaction(state.PlayerFaction.Id).First();
     GameRules.TryJoinAgentToStack(state, agent.Id, stack.Id);
@@ -447,6 +494,8 @@ void SaveLoadPreservesGameState()
 
     Assert(GameStateSerializer.ToJson(loaded) == json, "save/load round trip should preserve serialized state");
     Assert(loaded.WorldGeneration.ElevationVariance == state.WorldGeneration.ElevationVariance, "loaded state should retain world generation settings");
+    Assert(loaded.FogOfWarEnabled == state.FogOfWarEnabled, "loaded state should retain fog of war setting");
+    Assert(loaded.WorldGeneration.Civilizations == state.WorldGeneration.Civilizations, "loaded state should retain civilization count");
     Assert(loaded.WorldGeneration.GrasslandShrublandBias == state.WorldGeneration.GrasslandShrublandBias, "loaded state should retain grassland/shrubland bias");
     Assert(loaded.WorldGeneration.DesertBadlandsBias == state.WorldGeneration.DesertBadlandsBias, "loaded state should retain desert/badlands bias");
     Assert(loaded.WorldGeneration.ConiferBroadleafForestBias == state.WorldGeneration.ConiferBroadleafForestBias, "loaded state should retain conifer/broadleaf bias");
@@ -454,6 +503,21 @@ void SaveLoadPreservesGameState()
     Assert(loaded.Map.Get(stack.Coord).StackIds.Contains(stack.Id), "loaded map should retain stack tile index");
     Assert(loaded.Stacks[stack.Id].JoinedAgentIds.SequenceEqual([agent.Id]), "loaded stack should retain joined leader");
     Assert(loaded.Agents[agent.Id].JoinedStackId == stack.Id, "loaded agent should retain joined stack");
+}
+
+void FogVisibilityRulesGatePlayerVision()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var playerCity = state.Cities.Values.First(c => c.FactionId == state.PlayerFaction.Id);
+    var farTile = state.Map.Tiles
+        .Where(t => TerrainResolver.Resolve(state, t).Passable)
+        .OrderByDescending(t => t.Coord.DistanceTo(playerCity.Coord))
+        .First();
+
+    Assert(VisibilityRules.IsVisibleToPlayer(state, farTile.Coord), "fog off should make every tile visible");
+    state.FogOfWarEnabled = true;
+    Assert(VisibilityRules.IsVisibleToPlayer(state, playerCity.Coord), "player city tile should be visible with fog on");
+    Assert(!VisibilityRules.IsVisibleToPlayer(state, farTile.Coord), "far tile should be hidden with fog on");
 }
 
 void LoadedAiTurnReplaysDeterministically()
@@ -523,8 +587,9 @@ void TurnCyclingAdvancesFactionAndCountsTurns()
 void CombatAppliesCasualtiesToWinner()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var attacker = state.StacksForFaction("player").First();
-    var defender = state.StacksForFaction("ember").First();
+    var attacker = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var enemyFactionId = state.Factions.First(f => !f.IsPlayer).Id;
+    var defender = state.StacksForFaction(enemyFactionId).First();
 
     attacker.Units.Clear();
     attacker.Units.Add(new UnitInstance { TypeId = "spearmen", Count = 20 });

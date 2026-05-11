@@ -15,7 +15,7 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 - Saved worldgen settings for wetness, terrain variants, elevation variance, and climate bias.
 - Multi-unit army stacks per tile.
 - Agent units that can move independently, join a friendly army as leader, and detach.
-- City state with a building chain: Campsite -> Shelter -> Encampment -> Village Square -> Town Square -> City Square.
+- City state with a TownCenter settlement progression: Campsite -> Encampment -> Homestead -> Village -> Town -> City.
 - City building upgrades replace the previous chain level instead of adding every level beside it.
 - Turn manager behavior through `GameRules.AdvanceTurn`.
 - Player controls one faction with an army and agent.

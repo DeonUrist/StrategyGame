@@ -48,7 +48,7 @@ Godot input event
 | `RegionState` | Biome identity (base biome, temperature, moisture) for a set of tiles |
 | `StackState` | Army at a coord: unit roster, movement budget, joined agent IDs |
 | `AgentState` | Hero/scout: coord, movement budget, optional `JoinedStackId` |
-| `CityState` | Settlement: coord, upgrade chain (Campsite → City Square) |
+| `CityState` | Settlement: coord, generated name, owner, TownCenter level |
 | `GameState` | Central mutable container holding all of the above plus `GameDatabase` and turn tracking |
 | `GameDatabase` | Loads `data/*.json` catalogs (units, buildings, factions, events); resources defined in code |
 

@@ -28,7 +28,7 @@ Core files live in `src/Game/Core`. They do not use Godot APIs, so they are easi
 - `GameRules.Movement.cs`: movement cost and pathfinding range.
 - `GameRules.Stacks.cs`: army stack movement and combat entry.
 - `GameRules.Agents.cs`: agent movement, joining armies, and detaching leaders.
-- `GameRules.Cities.cs`: city building-chain upgrades.
+- `GameRules.Cities.cs`: TownCenter settlement-level upgrades.
 - `GameRules.Turns.cs`: faction turn order and movement reset.
 - `CombatResolver.cs`: simple strategic autoresolve combat.
 - `FactionDirector.cs`: the high-level AI turn flow.
@@ -53,8 +53,8 @@ Presentation files live in `src/Game/Presentation`. They connect player input an
 Authored catalogs in `data/` are:
 
 - `units.json`: militia, spearmen, scout, and captain definitions.
-- `buildings.json`: Campsite -> Shelter -> Encampment -> Village Square -> Town Square -> City Square upgrade chain.
-- `factions.json`: one player faction and two AI factions.
+- `buildings.json`: `TownCenter` levels from Campsite through City.
+- `factions.json`: six editable dark-fantasy faction types with descriptions and city name pools.
 - `events.json`: weighted AI actions: defend city, claim resource, attack enemy, scout, and upgrade city.
 
 There are no `terrain.json`, `resources.json`, or `features.json` catalogs in the current design. Land terrain is resolved from saved biome regions; resources and special features are defined and placed from code because their behavior is tied to generated map properties.

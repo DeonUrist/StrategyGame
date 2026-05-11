@@ -68,11 +68,11 @@ public sealed partial class FactionDirector
 
     private static bool CityCanUpgrade(GameState state, string factionId)
     {
-        // A city can upgrade if its current building has an UpgradesTo link in
-        // the building catalog.
+        // A city can upgrade if its TownCenter level has not reached the highest
+        // authored settlement level.
+        var maxLevel = SettlementProgression.MaxTownCenterLevel(state);
         return state.Cities.Values
             .Where(c => c.FactionId == factionId)
-            .Select(c => c.BuildingIds.LastOrDefault())
-            .Any(id => id is not null && state.Database.Buildings[id].UpgradesTo is not null);
+            .Any(c => c.TownCenterLevel < maxLevel);
     }
 }

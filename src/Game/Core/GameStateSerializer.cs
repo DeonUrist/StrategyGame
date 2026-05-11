@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 12;
+    private const int CurrentVersion = 14;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -80,7 +80,8 @@ public static class GameStateSerializer
             Map = map,
             WorldGeneration = snapshot.WorldGeneration.ToState(),
             CurrentFactionIndex = snapshot.CurrentFactionIndex,
-            Turn = snapshot.Turn
+            Turn = snapshot.Turn,
+            FogOfWarEnabled = snapshot.FogOfWarEnabled
         };
 
         foreach (var faction in snapshot.Factions)
@@ -90,8 +91,10 @@ public static class GameStateSerializer
             state.Factions.Add(new FactionState
             {
                 Id = faction.Id,
+                Type = faction.Type,
                 Name = faction.Name,
                 Color = faction.Color,
+                Description = faction.Description,
                 IsPlayer = faction.IsPlayer
             });
         }
@@ -154,16 +157,14 @@ public static class GameStateSerializer
 
         foreach (var city in snapshot.Cities)
         {
-            // CityState starts with campsite by default, so clear that default
-            // before adding the saved building chain level.
             var loadedCity = new CityState
             {
                 Id = city.Id,
                 Name = city.Name,
                 FactionId = city.FactionId,
-                Coord = new HexCoord(city.Q, city.R)
+                Coord = new HexCoord(city.Q, city.R),
+                TownCenterLevel = city.TownCenterLevel
             };
-            loadedCity.BuildingIds.AddRange(city.BuildingIds);
             state.Cities[loadedCity.Id] = loadedCity;
         }
 
@@ -185,8 +186,9 @@ public static class GameStateSerializer
             WorldGeneration = WorldGenerationSnapshot.FromState(state.WorldGeneration),
             CurrentFactionIndex = state.CurrentFactionIndex,
             Turn = state.Turn,
+            FogOfWarEnabled = state.FogOfWarEnabled,
             Factions = state.Factions
-                .Select(f => new FactionSnapshot(f.Id, f.Name, f.Color, f.IsPlayer))
+                .Select(f => new FactionSnapshot(f.Id, f.Type, f.Name, f.Color, f.Description, f.IsPlayer))
                 .ToList(),
             Regions = state.Regions.Values
                 .OrderBy(r => r.Id)
@@ -246,7 +248,7 @@ public static class GameStateSerializer
                     c.FactionId,
                     c.Coord.Q,
                     c.Coord.R,
-                    c.BuildingIds.ToList()))
+                    c.TownCenterLevel))
                 .ToList(),
             Log = state.Log
                 .Select(e => new LogSnapshot(e.Turn, e.Text))
@@ -262,6 +264,7 @@ public static class GameStateSerializer
         public WorldGenerationSnapshot WorldGeneration { get; set; } = WorldGenerationSnapshot.FromState(new WorldGenerationSettings());
         public int CurrentFactionIndex { get; set; }
         public int Turn { get; set; }
+        public bool FogOfWarEnabled { get; set; }
         public List<FactionSnapshot> Factions { get; set; } = [];
         public List<RegionSnapshot> Regions { get; set; } = [];
         public List<TileSnapshot> Tiles { get; set; } = [];
@@ -271,9 +274,9 @@ public static class GameStateSerializer
         public List<LogSnapshot> Log { get; set; } = [];
     }
 
-    private sealed record FactionSnapshot(string Id, string Name, string Color, bool IsPlayer);
+    private sealed record FactionSnapshot(string Id, string Type, string Name, string Color, string Description, bool IsPlayer);
     private sealed record CoordSnapshot(int Q, int R);
-    private sealed record WorldGenerationSnapshot(int MapSize, int Wetness, int GrasslandShrublandBias, int DesertBadlandsBias, int ConiferBroadleafForestBias, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias)
+    private sealed record WorldGenerationSnapshot(int MapSize, int Civilizations, int Wetness, int GrasslandShrublandBias, int DesertBadlandsBias, int ConiferBroadleafForestBias, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias)
     {
         public static WorldGenerationSnapshot FromState(WorldGenerationSettings settings)
         {
@@ -281,6 +284,7 @@ public static class GameStateSerializer
             // object directly so the save format remains explicit and versioned.
             return new WorldGenerationSnapshot(
                 settings.MapSize,
+                settings.Civilizations,
                 settings.Wetness,
                 settings.GrasslandShrublandBias,
                 settings.DesertBadlandsBias,
@@ -297,6 +301,7 @@ public static class GameStateSerializer
             return new WorldGenerationSettings
             {
                 MapSize = MapSize,
+                Civilizations = Civilizations,
                 Wetness = Wetness,
                 GrasslandShrublandBias = GrasslandShrublandBias,
                 DesertBadlandsBias = DesertBadlandsBias,
@@ -312,6 +317,6 @@ public static class GameStateSerializer
     private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, double MovementLeft, List<int> JoinedAgentIds, List<UnitSnapshot> Units);
     private sealed record UnitSnapshot(string TypeId, int Count);
     private sealed record AgentSnapshot(int Id, string FactionId, string TypeId, string Name, int Q, int R, double MovementLeft, int? JoinedStackId);
-    private sealed record CitySnapshot(int Id, string Name, string FactionId, int Q, int R, List<string> BuildingIds);
+    private sealed record CitySnapshot(int Id, string Name, string FactionId, int Q, int R, int TownCenterLevel);
     private sealed record LogSnapshot(int Turn, string Text);
 }

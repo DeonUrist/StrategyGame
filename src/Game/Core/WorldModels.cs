@@ -103,8 +103,10 @@ public sealed class HexMap
 public sealed class FactionState
 {
     public required string Id { get; init; }
+    public required string Type { get; init; }
     public required string Name { get; init; }
     public required string Color { get; init; }
+    public required string Description { get; init; }
     public required bool IsPlayer { get; init; }
 }
 
@@ -141,17 +143,15 @@ public sealed class AgentState
     public int? JoinedStackId { get; set; }
 }
 
-// CityState is the prototype settlement model. BuildingIds currently represents
-// one upgrade chain level, starting at campsite and replacing the previous level.
+// CityState is the prototype settlement model. TownCenterLevel is the single
+// hardcoded settlement progression used for map sprite and upgrade rules.
 public sealed class CityState
 {
     public int Id { get; init; }
     public required string Name { get; init; }
     public required string FactionId { get; set; }
     public required HexCoord Coord { get; init; }
-    // BuildingIds starts empty; the new-game path adds "campsite" explicitly.
-    // This avoids the load path having to Clear() a default value.
-    public List<string> BuildingIds { get; } = [];
+    public int TownCenterLevel { get; set; }
 }
 
 // GameLogEntry is intentionally tiny: all systems write human-readable text
@@ -170,8 +170,12 @@ public sealed class WorldGenerationSettings
     public const int MinMapSize = 32;
     public const int DefaultMapSize = 64;
     public const int MaxMapSize = 96;
+    public const int MinCivilizations = 1;
+    public const int DefaultCivilizations = 3;
+    public const int MaxCivilizations = 6;
 
     public int MapSize { get; init; } = DefaultMapSize;
+    public int Civilizations { get; init; } = DefaultCivilizations;
     public int Wetness { get; init; } = 50;
     public int GrasslandShrublandBias { get; init; } = 35;
     public int DesertBadlandsBias { get; init; } = 25;

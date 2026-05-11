@@ -25,16 +25,19 @@ public static partial class MapGenerator
             WorldGeneration = settings
         };
 
-        foreach (var faction in database.Factions.Values)
+        foreach (var faction in PickCivilizations(database, seed, settings.Civilizations))
         {
             // Copy definitions into state so the generated world owns its turn
             // order and save/load has the faction data it needs.
+            var isPlayer = state.Factions.Count == 0;
             state.Factions.Add(new FactionState
             {
                 Id = faction.Id,
+                Type = faction.Type,
                 Name = faction.Name,
                 Color = faction.Color,
-                IsPlayer = faction.IsPlayer
+                Description = faction.Description,
+                IsPlayer = isPlayer
             });
         }
 
@@ -49,7 +52,7 @@ public static partial class MapGenerator
         AddMapDetails(state, random);
         ExpandDeepIce(state, seed);
         ClassifyWaterBodies(state);
-        AddStartingPieces(state);
+        AddStartingPieces(state, seed);
 
         state.AddLog("Sandbox world created.");
         GameRules.ResetFactionMovement(state, state.CurrentFaction.Id);
@@ -86,5 +89,27 @@ public static partial class MapGenerator
         // UI sliders step by 16, but saved games or tests may supply any int.
         // Clamp here so every generator layer uses the same bounded map size.
         return Math.Clamp(mapSize, WorldGenerationSettings.MinMapSize, WorldGenerationSettings.MaxMapSize);
+    }
+
+    private static int NormalizeCivilizations(int civilizations)
+    {
+        return Math.Clamp(civilizations, WorldGenerationSettings.MinCivilizations, WorldGenerationSettings.MaxCivilizations);
+    }
+
+    private static List<FactionDefinition> PickCivilizations(GameDatabase database, int seed, int civilizations)
+    {
+        var count = Math.Min(NormalizeCivilizations(civilizations), database.Factions.Count);
+        var available = database.Factions.Values.OrderBy(f => f.Id).ToList();
+        var random = new Random(seed ^ unchecked((int)0x5f3759df));
+        var selected = new List<FactionDefinition>(count);
+
+        for (var i = 0; i < count; i++)
+        {
+            var index = random.Next(available.Count);
+            selected.Add(available[index]);
+            available.RemoveAt(index);
+        }
+
+        return selected;
     }
 }

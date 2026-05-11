@@ -30,13 +30,14 @@ public partial class MainGame : Node2D
     private Button _detachLeaderButton = null!;
     private Button _endTurnButton = null!;
     private Button _gearButton = null!;
-    private Button _toggleGridButton = null!;
     private Button _logToggleButton = null!;
     private Control _actionMenuPanel = null!;
     private Control _gearMenuPanel = null!;
     private Control _logPanel = null!;
     private Control _exitConfirmOverlay = null!;
+    private Control _optionsPanel = null!;
     private Label _mapSizeValueLabel = null!;
+    private Label _civilizationsValueLabel = null!;
     private Label _wetnessValueLabel = null!;
     private Label _grasslandShrublandValueLabel = null!;
     private Label _desertBadlandsValueLabel = null!;
@@ -45,6 +46,7 @@ public partial class MainGame : Node2D
     private Label _maxSeaValueLabel = null!;
     private Label _climateBiasValueLabel = null!;
     private HSlider _mapSizeSlider = null!;
+    private HSlider _civilizationsSlider = null!;
     private HSlider _wetnessSlider = null!;
     private HSlider _grasslandShrublandSlider = null!;
     private HSlider _desertBadlandsSlider = null!;
@@ -53,6 +55,8 @@ public partial class MainGame : Node2D
     private HSlider _maxSeaSlider = null!;
     private HSlider _climateBiasSlider = null!;
     private string _savePath = "";
+    private string _settingsPath = "";
+    private PresentationSettings _settings = new();
 
     // Selection stores either a stack id or an agent id. _selectedRange is the
     // precomputed movement map used both for highlighting and validating clicks.
@@ -81,6 +85,10 @@ public partial class MainGame : Node2D
         var dataPath = ProjectSettings.GlobalizePath("res://data");
         _database = GameDatabase.LoadFromDirectory(dataPath);
         _savePath = ProjectSettings.GlobalizePath("user://strategy-save.json");
+        _settingsPath = ProjectSettings.GlobalizePath("user://settings.json");
+        _settings = PresentationSettings.Load(_settingsPath);
+        _gridVisible = _settings.GridVisible;
+        ApplyAudioSettings();
 
         _camera = new Camera2D { Enabled = true, Position = new Vector2(470, 340), Zoom = new Vector2(DefaultCameraZoom, DefaultCameraZoom) };
         AddChild(_camera);

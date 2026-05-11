@@ -119,9 +119,10 @@ public partial class MainGame
     private string CityPanelText(GameState state, CityState city)
     {
         var faction = _factionById[city.FactionId];
-        return $"\nCity: {Escape(city.Name)}"
+        var townCenter = SettlementProgression.CurrentTownCenter(state, city);
+        return $"\nSettlement: {Escape(SettlementProgression.DisplayName(state, city))}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
-             + $"\nBuildings: {string.Join(", ", city.BuildingIds.Select(id => ColorText(state.Database.Buildings[id].Name, BuildingColor(state.Database.Buildings[id].Level))))}";
+             + $"\nTown Center: {ColorText(townCenter.Name, BuildingColor(townCenter.Level))}";
     }
 
     private static string LogPanelText(GameLogEntry entry)
@@ -168,12 +169,12 @@ public partial class MainGame
     {
         return level switch
         {
-            1 => "#b88f6a",
-            2 => "#c9ba82",
-            3 => "#8fb26a",
-            4 => "#73a2d9",
-            5 => "#d9b86a",
-            6 => "#b8a0e0",
+            0 => "#b88f6a",
+            1 => "#c9ba82",
+            2 => "#8fb26a",
+            3 => "#73a2d9",
+            4 => "#d9b86a",
+            5 => "#b8a0e0",
             _ => "#ffffff"
         };
     }

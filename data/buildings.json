@@ -1,8 +1,13 @@
 [
-  { "id": "campsite", "name": "Campsite", "level": 1, "upgradesTo": "shelter" },
-  { "id": "shelter", "name": "Shelter", "level": 2, "upgradesTo": "encampment" },
-  { "id": "encampment", "name": "Encampment", "level": 3, "upgradesTo": "villagesquare" },
-  { "id": "villagesquare", "name": "Village Square", "level": 4, "upgradesTo": "townsquare" },
-  { "id": "townsquare", "name": "Town Square", "level": 5, "upgradesTo": "citysquare" },
-  { "id": "citysquare", "name": "City Square", "level": 6, "upgradesTo": null }
+  {
+    "id": "TownCenter",
+    "levels": [
+      { "level": 0, "name": "Campsite", "sprite": "campsite" },
+      { "level": 1, "name": "Encampment", "sprite": "encampment" },
+      { "level": 2, "name": "Homestead", "sprite": "homestead" },
+      { "level": 3, "name": "Village", "sprite": "villagesquare" },
+      { "level": 4, "name": "Town", "sprite": "townsquare" },
+      { "level": 5, "name": "City", "sprite": "citysquare" }
+    ]
+  }
 ]

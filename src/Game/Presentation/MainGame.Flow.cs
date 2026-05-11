@@ -18,6 +18,7 @@ public partial class MainGame
         _newGameRoot.Visible = false;
         _gameRoot.Visible = false;
         _actionMenuPanel.Visible = false;
+        _optionsPanel.Visible = false;
         _loadGameButton.Disabled = !File.Exists(_savePath);
         RequestFullRedraw();
     }
@@ -33,6 +34,7 @@ public partial class MainGame
         _newGameRoot.Visible = true;
         _gameRoot.Visible = false;
         _actionMenuPanel.Visible = false;
+        _optionsPanel.Visible = false;
         RequestFullRedraw();
     }
 
@@ -51,9 +53,11 @@ public partial class MainGame
         _gearMenuPanel.Visible = false;
         _actionMenuPanel.Visible = false;
         _exitConfirmOverlay.Visible = false;
+        _optionsPanel.Visible = false;
         SetLogCollapsed(_isLogCollapsed);
         UpdatePanel();
         RequestFullRedraw();
+        CenterCameraOnPlayerTown();
     }
 
     private void CreateNewGameFromSetup()
@@ -61,6 +65,7 @@ public partial class MainGame
         var settings = new WorldGenerationSettings
         {
             MapSize = (int)_mapSizeSlider.Value,
+            Civilizations = (int)_civilizationsSlider.Value,
             Wetness = (int)_wetnessSlider.Value,
             GrasslandShrublandBias = (int)_grasslandShrublandSlider.Value,
             DesertBadlandsBias = (int)_desertBadlandsSlider.Value,
@@ -143,9 +148,9 @@ public partial class MainGame
         ShowGame();
     }
 
-    private void EndPlayerTurn()
+    private async void EndPlayerTurn()
     {
-        if (_state is not { } state || !state.CurrentFaction.IsPlayer)
+        if (_state is not { } state || !state.CurrentFaction.IsPlayer || _mapInputLocked)
         {
             return;
         }
@@ -156,15 +161,86 @@ public partial class MainGame
         ClearSelection();
         _gearMenuPanel.Visible = false;
         _actionMenuPanel.Visible = false;
+        _optionsPanel.Visible = false;
+        _endTurnButton.Disabled = true;
+        _mapInputLocked = true;
         GameRules.AdvanceTurn(state);
-        while (!state.CurrentFaction.IsPlayer)
+
+        try
         {
-            _director.TakeTurn(state, state.CurrentFaction.Id);
-            GameRules.AdvanceTurn(state);
+            while (!state.CurrentFaction.IsPlayer)
+            {
+                UpdatePanel();
+                SyncDynamicObjects();
+                await PlayAiTurnAsync(state, state.CurrentFaction.Id);
+                GameRules.AdvanceTurn(state);
+            }
+        }
+        finally
+        {
+            _mapInputLocked = false;
+            _endTurnButton.Disabled = false;
         }
 
         UpdatePanel();
         SyncDynamicObjects();
+    }
+
+    private async Task PlayAiTurnAsync(GameState state, string factionId)
+    {
+        foreach (var step in _director.TakeTurnSteps(state, factionId))
+        {
+            UpdatePanel();
+            switch (step.Kind)
+            {
+                case AiTurnStepKind.StackMove:
+                case AiTurnStepKind.AgentMove:
+                    await AnimateAiMoveAsync(state, step);
+                    break;
+                case AiTurnStepKind.CityUpgrade:
+                    SyncDynamicObjects();
+                    await WaitAnimationPauseAsync();
+                    break;
+            }
+        }
+    }
+
+    private async Task AnimateAiMoveAsync(GameState state, AiTurnStep step)
+    {
+        if (step.Origin is not { } origin || step.Destination is not { } destination)
+        {
+            SyncDynamicObjects();
+            return;
+        }
+
+        var visible = VisibilityRules.IsMoveVisibleToPlayer(state, origin, destination);
+        var cameraTask = visible ? AnimateCameraToAsync(HexToPixel(destination)) : Task.CompletedTask;
+        Task unitTask = Task.CompletedTask;
+
+        if (step.Kind == AiTurnStepKind.StackMove)
+        {
+            if (step.PieceSurvived)
+            {
+                SyncUnitObjects(movingStackId: step.PieceId);
+            }
+
+            if (_stackViews.TryGetValue(step.PieceId, out var stackView))
+            {
+                unitTask = AnimateUnitViewAsync(stackView, HexToPixel(origin), HexToPixel(destination));
+            }
+        }
+        else
+        {
+            SyncUnitObjects(movingAgentId: step.PieceId);
+            if (_agentViews.TryGetValue(step.PieceId, out var agentView))
+            {
+                unitTask = AnimateUnitViewAsync(agentView, HexToPixel(origin), HexToPixel(destination));
+            }
+        }
+
+        await Task.WhenAll(cameraTask, unitTask);
+        SyncDynamicObjects();
+        await WaitAnimationPauseAsync();
     }
 
     private void DetachSelectedLeader()
@@ -263,12 +339,45 @@ public partial class MainGame
         _gearMenuPanel.Visible = !_gearMenuPanel.Visible;
         _actionMenuPanel.Visible = false;
         _exitConfirmOverlay.Visible = false;
+        _optionsPanel.Visible = false;
     }
 
-    private void ToggleGrid()
+    private void SavePresentationSettings()
     {
-        _gridVisible = !_gridVisible;
-        SetGridVisible(_gridVisible);
+        ApplyAudioSettings();
+        _settings.Save(_settingsPath);
+    }
+
+    private void ApplyAudioSettings()
+    {
+        ApplyAudioBusVolume("Music", _settings.MusicVolume);
+        ApplyAudioBusVolume("Effects", _settings.EffectsVolume);
+    }
+
+    private static void ApplyAudioBusVolume(string busName, int volume)
+    {
+        var bus = AudioServer.GetBusIndex(busName);
+        if (bus < 0)
+        {
+            return;
+        }
+
+        var linear = Mathf.Clamp(volume / 100f, 0.0001f, 1f);
+        AudioServer.SetBusVolumeDb(bus, Mathf.LinearToDb(linear));
+        AudioServer.SetBusMute(bus, volume <= 0);
+    }
+
+    private void ShowOptionsPanel()
+    {
+        _gearMenuPanel.Visible = false;
+        _actionMenuPanel.Visible = false;
+        _exitConfirmOverlay.Visible = false;
+        _optionsPanel.Visible = true;
+    }
+
+    private void HideOptionsPanel()
+    {
+        _optionsPanel.Visible = false;
     }
 
     private void PromptExitWithoutSave()

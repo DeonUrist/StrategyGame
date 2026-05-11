@@ -53,6 +53,27 @@ public partial class MainGame
         _camera.Zoom = new Vector2(zoom, zoom);
     }
 
+    private void CenterCameraOnPlayerTown()
+    {
+        if (_state is not { } state)
+        {
+            return;
+        }
+
+        var city = state.Cities.Values
+            .Where(c => c.FactionId == state.PlayerFaction.Id)
+            .OrderBy(c => c.Id)
+            .FirstOrDefault();
+        if (city is null)
+        {
+            return;
+        }
+
+        var zoom = Mathf.Clamp(3.0f, MinCameraZoom, MaxCameraZoom);
+        _camera.Zoom = new Vector2(zoom, zoom);
+        _camera.Position = HexToPixel(city.Coord);
+    }
+
     private static Vector2 HexToPixel(HexCoord coord)
     {
         // Flat-top axial layout. The terrain art keeps the actual hex in the

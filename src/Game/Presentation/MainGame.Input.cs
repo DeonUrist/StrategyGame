@@ -141,7 +141,7 @@ public partial class MainGame
             return;
         }
 
-        AnimateUnitView(view, HexContentToPixel(origin) + new Vector2(-7, 4), HexContentToPixel(stack.Coord) + new Vector2(-7, 4));
+        AnimateUnitView(view, HexToPixel(origin), HexToPixel(stack.Coord));
     }
 
     private void AnimateMovedAgent(int agentId, HexCoord origin)
@@ -154,19 +154,70 @@ public partial class MainGame
             return;
         }
 
-        AnimateUnitView(view, HexContentToPixel(origin) + new Vector2(7, 4), HexContentToPixel(agent.Coord) + new Vector2(7, 4));
+        AnimateUnitView(view, HexToPixel(origin), HexToPixel(agent.Coord));
     }
 
     private void AnimateUnitView(Node2D view, Vector2 from, Vector2 to)
     {
+        _ = AnimatePlayerUnitViewAsync(view, from, to);
+    }
+
+    private async Task AnimatePlayerUnitViewAsync(Node2D view, Vector2 from, Vector2 to)
+    {
         _mapInputLocked = true;
+        await AnimateUnitViewAsync(view, from, to);
+        _mapInputLocked = false;
+        SyncDynamicObjects();
+    }
+
+    private async Task AnimateUnitViewAsync(Node2D view, Vector2 from, Vector2 to)
+    {
         view.Position = from;
-        var tween = CreateTween();
-        tween.TweenProperty(view, "position", to, 0.22).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
-        tween.Finished += () =>
+        var (duration, _) = AnimationTiming();
+        if (duration <= 0)
         {
-            _mapInputLocked = false;
-            SyncDynamicObjects();
+            view.Position = to;
+            return;
+        }
+
+        var tween = CreateTween();
+        tween.TweenProperty(view, "position", to, duration).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        await ToSignal(tween, Tween.SignalName.Finished);
+    }
+
+    private async Task AnimateCameraToAsync(Vector2 destination)
+    {
+        var (duration, _) = AnimationTiming();
+        if (duration <= 0)
+        {
+            _camera.Position = destination;
+            return;
+        }
+
+        var tween = CreateTween();
+        tween.TweenProperty(_camera, "position", destination, duration).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        await ToSignal(tween, Tween.SignalName.Finished);
+    }
+
+    private async Task WaitAnimationPauseAsync()
+    {
+        var (_, pause) = AnimationTiming();
+        if (pause <= 0)
+        {
+            return;
+        }
+
+        await ToSignal(GetTree().CreateTimer(pause), Godot.Timer.SignalName.Timeout);
+    }
+
+    private (double Duration, double Pause) AnimationTiming()
+    {
+        return _settings.AnimationSpeed switch
+        {
+            AnimationSpeedSetting.Immediate => (0.0, 0.0),
+            AnimationSpeedSetting.Slow => (0.60, 0.18),
+            AnimationSpeedSetting.Medium => (0.35, 0.10),
+            _ => (0.20, 0.05)
         };
     }
 

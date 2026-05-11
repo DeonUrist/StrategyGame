@@ -2,14 +2,17 @@ namespace StrategyGame.Core;
 
 public static partial class MapGenerator
 {
-    private static void AddStartingPieces(GameState state)
+    private static void AddStartingPieces(GameState state, int seed)
     {
         var mapSize = NormalizeMapSize(state.WorldGeneration.MapSize);
         var starts = new[]
         {
             ToCoord(mapSize * 28 / 100, mapSize * 47 / 100),
             ToCoord(mapSize * 50 / 100, mapSize * 31 / 100),
-            ToCoord(mapSize * 34 / 100, mapSize * 22 / 100)
+            ToCoord(mapSize * 34 / 100, mapSize * 22 / 100),
+            ToCoord(mapSize * 68 / 100, mapSize * 45 / 100),
+            ToCoord(mapSize * 56 / 100, mapSize * 70 / 100),
+            ToCoord(mapSize * 22 / 100, mapSize * 70 / 100)
         };
         var stackId = 1;
         var agentId = 1;
@@ -20,7 +23,8 @@ public static partial class MapGenerator
             // moves it to a flatter passable tile.
             var faction = state.Factions[i];
             var start = FindNearestStart(state, starts[i % starts.Length]);
-            AddCity(state, i + 1, $"{faction.Name} Hold", faction.Id, start);
+            var cityName = CityNameGenerator.Generate(state.Database.Factions[faction.Id], seed ^ (i + 1));
+            AddCity(state, i + 1, cityName, faction.Id, start);
             AddStack(state, stackId++, faction.Id, start, ("militia", 8), ("spearmen", 3));
             AddStack(state, stackId++, faction.Id, start, ("militia", 5), ("spearmen", 2));
             AddAgent(state, agentId++, faction.Id, i == 0 ? "captain" : "scout", i == 0 ? "Aldren" : $"{faction.Name} Scout", start);
@@ -45,7 +49,6 @@ public static partial class MapGenerator
         // City ownership is stored on the CityState. The tile stores only the id
         // so map lookups can quickly find the city on a clicked hex.
         var city = new CityState { Id = id, Name = name, FactionId = factionId, Coord = coord };
-        city.BuildingIds.Add("campsite");
         state.Cities[id] = city;
         state.Map.Get(coord).CityId = id;
     }

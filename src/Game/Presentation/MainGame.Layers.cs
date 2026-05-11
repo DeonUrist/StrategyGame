@@ -163,13 +163,64 @@ public partial class MainGame
         ClearLayer(_locationsRoot);
         foreach (var city in state.Cities.Values.OrderBy(c => c.Id))
         {
-            var buildingId = city.BuildingIds.LastOrDefault() ?? "campsite";
-            _locationsRoot.AddChild(CreateMapSprite(
+            var townCenter = SettlementProgression.CurrentTownCenter(state, city);
+            _locationsRoot.AddChild(CreateTileAlignedSprite(
                 $"Location_{city.Id}",
-                $"res://assets/image/locations/{NormalizeAssetKey(buildingId)}.png",
-                HexContentToPixel(city.Coord) + new Vector2(0, -2),
-                0.7f));
+                $"res://assets/image/locations/{NormalizeAssetKey(townCenter.Sprite)}.png",
+                HexToPixel(city.Coord)));
+            _locationsRoot.AddChild(CreateSettlementLabel(state, city, HexContentToPixel(city.Coord) + new Vector2(0, 8)));
         }
+    }
+
+    private Node CreateSettlementLabel(GameState state, CityState city, Vector2 position)
+    {
+        var labelText = SettlementProgression.DisplayName(state, city);
+        var faction = _factionById.TryGetValue(city.FactionId, out var foundFaction)
+            ? foundFaction
+            : state.GetFaction(city.FactionId);
+        const float labelRenderScale = 2f;
+        var width = Mathf.Clamp(labelText.Length * 5.5f + 6f, 24f, TileTextureWidth);
+        var height = 12f;
+        var snappedPosition = new Vector2(
+            MathF.Round(position.X - width / 2f),
+            MathF.Round(position.Y));
+        var panel = new PanelContainer
+        {
+            Name = $"LocationLabel_{city.Id}",
+            Position = snappedPosition,
+            CustomMinimumSize = new Vector2(width * labelRenderScale, height * labelRenderScale),
+            Scale = new Vector2(1f / labelRenderScale, 1f / labelRenderScale),
+            ZIndex = 20
+        };
+        var style = new StyleBoxFlat
+        {
+            BgColor = Colors.White,
+            BorderColor = new Color(faction.Color),
+            BorderWidthLeft = 2,
+            BorderWidthTop = 2,
+            BorderWidthRight = 2,
+            BorderWidthBottom = 2,
+            ContentMarginLeft = 4,
+            ContentMarginTop = 0,
+            ContentMarginRight = 4,
+            ContentMarginBottom = 0
+        };
+        panel.AddThemeStyleboxOverride("panel", style);
+
+        var label = new Label
+        {
+            Text = labelText,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipText = true,
+            CustomMinimumSize = new Vector2(width * labelRenderScale, (height - 2) * labelRenderScale)
+        };
+        label.AddThemeColorOverride("font_color", Colors.Black);
+        label.AddThemeFontSizeOverride("font_size", 18);
+        label.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
+        panel.AddChild(label);
+
+        return panel;
     }
 
     private void SyncUnitObjects(int? movingStackId = null, int? movingAgentId = null)
@@ -203,10 +254,10 @@ public partial class MainGame
             for (var i = 0; i < stacks.Count; i++)
             {
                 var stack = stacks[i];
-                var view = GetOrCreateUnitView(_stackViews, stack.Id, $"Stack_{stack.Id}", "res://assets/image/units/army.png", 0.3f);
+                var view = GetOrCreateUnitView(_stackViews, stack.Id, $"Stack_{stack.Id}", "res://assets/image/units/army.png");
                 if (movingStackId != stack.Id)
                 {
-                    view.Position = HexContentToPixel(stack.Coord) + PieceOffset(i, stacks.Count, new Vector2(-7, 4));
+                    view.Position = HexToPixel(stack.Coord) + PieceOffset(i, stacks.Count);
                 }
             }
 
@@ -219,23 +270,23 @@ public partial class MainGame
             for (var i = 0; i < agents.Count; i++)
             {
                 var agent = agents[i];
-                var view = GetOrCreateUnitView(_agentViews, agent.Id, $"Agent_{agent.Id}", "res://assets/image/units/agent.png", 0.26f);
+                var view = GetOrCreateUnitView(_agentViews, agent.Id, $"Agent_{agent.Id}", "res://assets/image/units/agent.png");
                 if (movingAgentId != agent.Id)
                 {
-                    view.Position = HexContentToPixel(agent.Coord) + PieceOffset(i, agents.Count, new Vector2(7, 4));
+                    view.Position = HexToPixel(agent.Coord) + PieceOffset(i, agents.Count);
                 }
             }
         }
     }
 
-    private Node2D GetOrCreateUnitView(Dictionary<int, Node2D> views, int id, string nodeName, string path, float targetScale)
+    private Node2D GetOrCreateUnitView(Dictionary<int, Node2D> views, int id, string nodeName, string path)
     {
         if (views.TryGetValue(id, out var existing))
         {
             return existing;
         }
 
-        var view = CreateMapSprite(nodeName, path, Vector2.Zero, targetScale);
+        var view = CreateTileAlignedSprite(nodeName, path, Vector2.Zero);
         _unitsRoot.AddChild(view);
         views[id] = view;
         return view;
@@ -251,6 +302,19 @@ public partial class MainGame
             ZAsRelative = false
         };
         ApplySpriteScale(sprite, targetScale);
+        return sprite;
+    }
+
+    private Sprite2D CreateTileAlignedSprite(string nodeName, string texturePath, Vector2 position)
+    {
+        var sprite = new Sprite2D
+        {
+            Name = nodeName,
+            Texture = LoadTexture(texturePath),
+            Position = position,
+            ZAsRelative = false
+        };
+        ApplyTileSpriteScale(sprite);
         return sprite;
     }
 
@@ -286,6 +350,24 @@ public partial class MainGame
         sprite.Scale = new Vector2(scale, scale);
     }
 
+    private static void ApplyTileSpriteScale(Sprite2D sprite)
+    {
+        if (sprite.Texture is null)
+        {
+            return;
+        }
+
+        var size = sprite.Texture.GetSize();
+        var longest = MathF.Max(size.X, size.Y);
+        if (longest <= 0)
+        {
+            return;
+        }
+
+        var scale = TileTextureWidth / longest;
+        sprite.Scale = new Vector2(scale, scale);
+    }
+
     private void UpdateSelectionHighlights()
     {
         if (_tileViews.Count == 0)
@@ -307,9 +389,9 @@ public partial class MainGame
         }
     }
 
-    private static Vector2 PieceOffset(int index, int count, Vector2 baseOffset)
+    private static Vector2 PieceOffset(int index, int count)
     {
-        return baseOffset + new Vector2((index - (count - 1) / 2f) * 7f, 0);
+        return count <= 1 ? Vector2.Zero : new Vector2((index - (count - 1) / 2f) * 5f, 0);
     }
 
     private static string TerrainSpritePath(GameState state, HexTile tile)

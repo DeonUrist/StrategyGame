@@ -17,6 +17,7 @@ public sealed class GameState
     public List<GameLogEntry> Log { get; } = [];
     public int CurrentFactionIndex { get; set; }
     public int Turn { get; set; } = 1;
+    public bool FogOfWarEnabled { get; set; }
 
     // Turn order is list-based and follows data/factions.json. The player helper
     // assumes exactly one faction definition is marked IsPlayer.
