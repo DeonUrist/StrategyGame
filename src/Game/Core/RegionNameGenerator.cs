@@ -90,8 +90,7 @@ public static class RegionNameGenerator
             "Desert" or "Badlands" => AridPrefixes,
             "Swamp" => WetPrefixes,
             "Jungle" or "Conifer Forest" or "Broadleaf Forest" or "Taiga" => ForestPrefixes,
-            "Shrubland" => PlainPrefixes,
-            "Grassland" or "Prairie" => PlainPrefixes,
+            "Shrubland" or "Grassland" => PlainPrefixes,
             _ => DefaultPrefixes
         };
     }
@@ -106,7 +105,7 @@ public static class RegionNameGenerator
             "Jungle" => JungleSuffixes,
             "Conifer Forest" or "Broadleaf Forest" or "Taiga" => ForestSuffixes,
             "Shrubland" => ScrubSuffixes,
-            "Grassland" or "Prairie" => GrasslandSuffixes,
+            "Grassland" => GrasslandSuffixes,
             _ => DefaultSuffixes
         };
     }

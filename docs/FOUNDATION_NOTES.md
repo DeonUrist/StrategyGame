@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the base for a Godot 2D turn-based strategy game that can grow toward hex terrain, resources, multi-unit stacking, cities with building chains, factions, AI directors, armies, and hero/agent units.
+Build the base for a Godot 2D turn-based strategy game that can grow toward hex terrain, resources, multi-unit groups, cities with building chains, factions, AI directors, and hero/agent units.
 
 ## Implemented Foundation
 
@@ -13,12 +13,12 @@ Build the base for a Godot 2D turn-based strategy game that can grow toward hex 
 - Ocean border, small inland lakes, region-edge hills, mountains, peaks, volcano features, saved biome regions, north/south temperature bands, moisture, and explicit terrain-variant rolls.
 - Ground and water terrain, terrain movement costs, terrain defense modifiers, resources, cities, armies, and agents.
 - Saved worldgen settings for wetness, terrain variants, elevation variance, and climate bias.
-- Multi-unit army stacks per tile.
-- Agent units that can move independently, join a friendly army as leader, and detach.
+- Multi-unit groups per tile.
+- Agent units that can move independently as one-unit groups, transfer into friendly groups, and split back out.
 - City state with a TownCenter settlement progression: Campsite -> Encampment -> Homestead -> Village -> Town -> City.
 - City building upgrades replace the previous chain level instead of adding every level beside it.
 - Turn manager behavior through `GameRules.AdvanceTurn`.
-- Player controls one faction with an army and agent.
+- Player controls one faction with a default group and agent group.
 - AI factions use `FactionDirector` to choose weighted actions from world state and `data/events.json`.
 - AI faction turns use deterministic turn/faction seeds so loaded states can replay the same director result.
 - Strategic auto-resolve combat.

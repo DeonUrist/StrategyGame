@@ -15,6 +15,7 @@ public sealed class PresentationSettings
     public int EffectsVolume { get; set; } = 100;
     public int MusicVolume { get; set; } = 100;
     public bool GridVisible { get; set; } = true;
+    public bool ResourceIconsVisible { get; set; } = true;
     public AnimationSpeedSetting AnimationSpeed { get; set; } = AnimationSpeedSetting.Fast;
     public KeyBindingSettings KeyBindings { get; set; } = new();
 

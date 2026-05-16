@@ -43,10 +43,10 @@ public sealed partial class FactionDirector
 
     private static bool EnemyNearOwnedCity(GameState state, string factionId)
     {
-        // A nearby enemy makes defense more attractive, even if the chosen stack
+        // A nearby enemy makes defense more attractive, even if the chosen group
         // later moves toward the closest enemy rather than the city itself.
         var cities = state.Cities.Values.Where(c => c.FactionId == factionId).ToList();
-        return cities.Any(city => state.Stacks.Values.Any(stack => stack.FactionId != factionId && stack.Coord.DistanceTo(city.Coord) <= 4));
+        return cities.Any(city => state.Groups.Values.Any(group => group.FactionId != factionId && group.StationedCityId is null && group.Coord.DistanceTo(city.Coord) <= 4));
     }
 
     private static bool UnownedResourceExists(GameState state, string factionId)
@@ -59,11 +59,11 @@ public sealed partial class FactionDirector
 
     private static bool WeakEnemyNearby(GameState state, string factionId)
     {
-        // Compare raw stack strength and distance to decide whether attacking is
+        // Compare raw group strength and distance to decide whether attacking is
         // tempting. Terrain defense is ignored here and applied during combat.
-        var ownStacks = state.StacksForFaction(factionId).ToList();
-        var enemyStacks = state.Stacks.Values.Where(s => s.FactionId != factionId).ToList();
-        return ownStacks.Any(own => enemyStacks.Any(enemy => own.Coord.DistanceTo(enemy.Coord) <= 6 && CombatResolver.StackStrength(state, own) >= CombatResolver.StackStrength(state, enemy)));
+        var ownGroups = state.GroupsForFaction(factionId).Where(g => g.StationedCityId is null).ToList();
+        var enemyGroups = state.Groups.Values.Where(g => g.FactionId != factionId && g.StationedCityId is null).ToList();
+        return ownGroups.Any(own => enemyGroups.Any(enemy => own.Coord.DistanceTo(enemy.Coord) <= 6 && CombatResolver.GroupStrength(state, own) >= CombatResolver.GroupStrength(state, enemy)));
     }
 
     private static bool CityCanUpgrade(GameState state, string factionId)

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://jdaoib2rbryk"
-path="res://.godot/imported/prairie_peaks.png-fa8ab6d11aac884f09365cacd4383f18.ctex"
+uid="uid://cjtnfcicb05tf"
+path="res://.godot/imported/ocean_base.png-de416f615dc26d898a6374e1c2790229.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/image/terrain/prairie_peaks.png"
-dest_files=["res://.godot/imported/prairie_peaks.png-fa8ab6d11aac884f09365cacd4383f18.ctex"]
+source_file="res://assets/image/terrain/ocean_base.png"
+dest_files=["res://.godot/imported/ocean_base.png-de416f615dc26d898a6374e1c2790229.ctex"]
 
 [params]
 

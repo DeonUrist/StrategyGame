@@ -15,6 +15,20 @@ public partial class MainGame
                 return;
             }
 
+            if (IsToggleGridKey(keyEvent))
+            {
+                ToggleGridVisibilityPreference();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
+            if (IsToggleResourceIconsKey(keyEvent))
+            {
+                ToggleResourceIconsVisibilityPreference();
+                GetViewport().SetInputAsHandled();
+                return;
+            }
+
             if (_optionsPanel.Visible)
             {
                 if (IsOpenMenuKey(keyEvent))
@@ -103,6 +117,16 @@ public partial class MainGame
                || MatchesKey(keyEvent, _settings.KeyBindings.RecenterSecondary);
     }
 
+    private static bool IsToggleGridKey(InputEventKey keyEvent)
+    {
+        return keyEvent.Keycode == Key.G;
+    }
+
+    private static bool IsToggleResourceIconsKey(InputEventKey keyEvent)
+    {
+        return keyEvent.Keycode == Key.R;
+    }
+
     private static bool MatchesKey(InputEventKey keyEvent, int key)
     {
         return key != 0 && (int)keyEvent.Keycode == key;
@@ -136,29 +160,26 @@ public partial class MainGame
             return;
         }
 
+        _selectedRegionId = tile.RegionId;
         _actionMenuPanel.Visible = false;
         _gearMenuPanel.Visible = false;
 
-        var selectableStacks = tile.StackIds
-            .Select(id => state.Stacks[id])
-            .OrderBy(s => s.Id)
-            .ToList();
-        var selectableAgents = tile.AgentIds
-            .Select(id => state.Agents[id])
-            .Where(a => a.JoinedStackId is null)
-            .OrderBy(a => a.Id)
+        var selectableGroups = tile.GroupIds
+            .Select(id => state.Groups[id])
+            .Where(g => g.StationedCityId is null)
+            .OrderBy(g => g.Id)
             .ToList();
 
-        if (selectableStacks.Count + selectableAgents.Count > 0)
+        if (selectableGroups.Count > 0)
         {
-            SelectNextPieceOnTile(state, tile, selectableStacks, selectableAgents);
+            SelectNextGroupOnTile(state, selectableGroups);
             UpdatePanel(tile);
             ComputeSelectedRange(state);
             UpdateSelectionHighlights();
             return;
         }
 
-        var hadSelection = _selectedStackId is not null || _selectedAgentId is not null || _selectedRange.Count > 0;
+        var hadSelection = _selectedGroupId is not null || _selectedRange.Count > 0;
         ClearSelection();
         UpdatePanel(tile);
         if (hadSelection)
@@ -183,20 +204,21 @@ public partial class MainGame
 
         _actionMenuPanel.Visible = false;
 
-        if (_selectedStackId is { } stackId
-            && state.Stacks.TryGetValue(stackId, out var selectedStack)
-            && selectedStack.FactionId == state.PlayerFaction.Id
+        if (_selectedGroupId is { } groupId
+            && state.Groups.TryGetValue(groupId, out var selectedGroup)
+            && selectedGroup.FactionId == state.PlayerFaction.Id
+            && selectedGroup.StationedCityId is null
             && _selectedRange.ContainsKey(coord)
-            && selectedStack.Coord != coord)
+            && selectedGroup.Coord != coord)
         {
-            var origin = selectedStack.Coord;
-            if (!GameRules.TryMoveStack(state, stackId, coord))
+            var origin = selectedGroup.Coord;
+            if (!GameRules.TryMoveGroup(state, groupId, coord))
             {
                 return;
             }
-            if (state.Stacks.ContainsKey(stackId))
+            if (state.Groups.ContainsKey(groupId))
             {
-                SelectStack(state, selectedStack);
+                SelectGroup(state, selectedGroup);
                 ComputeSelectedRange(state);
             }
             else
@@ -205,53 +227,22 @@ public partial class MainGame
             }
             UpdatePanel(tile);
             _gearMenuPanel.Visible = false;
-            AnimateMovedStack(stackId, origin);
+            AnimateMovedGroup(groupId, origin);
             return;
-        }
-
-        if (_selectedAgentId is { } agentId
-            && state.Agents.TryGetValue(agentId, out var selectedAgent)
-            && selectedAgent.FactionId == state.PlayerFaction.Id
-            && _selectedRange.ContainsKey(coord)
-            && selectedAgent.Coord != coord)
-        {
-            var origin = selectedAgent.Coord;
-            if (!GameRules.TryMoveAgent(state, agentId, coord))
-            {
-                return;
-            }
-            SelectAgent(state, selectedAgent);
-            UpdatePanel(tile);
-            ComputeSelectedRange(state);
-            _gearMenuPanel.Visible = false;
-            AnimateMovedAgent(agentId, origin);
         }
     }
 
-    private void AnimateMovedStack(int stackId, HexCoord origin)
+    private void AnimateMovedGroup(int groupId, HexCoord origin)
     {
-        SyncUnitObjects(movingStackId: stackId);
+        SyncUnitObjects(movingGroupId: groupId);
         UpdateSelectionHighlights();
-        if (_state is not { } state || !state.Stacks.TryGetValue(stackId, out var stack) || !_stackViews.TryGetValue(stackId, out var view))
+        if (_state is not { } state || !state.Groups.TryGetValue(groupId, out var group) || !_groupViews.TryGetValue(groupId, out var view))
         {
             SyncDynamicObjects();
             return;
         }
 
-        AnimateUnitView(view, HexToPixel(origin), HexToPixel(stack.Coord));
-    }
-
-    private void AnimateMovedAgent(int agentId, HexCoord origin)
-    {
-        SyncUnitObjects(movingAgentId: agentId);
-        UpdateSelectionHighlights();
-        if (_state is not { } state || !state.Agents.TryGetValue(agentId, out var agent) || !_agentViews.TryGetValue(agentId, out var view))
-        {
-            SyncDynamicObjects();
-            return;
-        }
-
-        AnimateUnitView(view, HexToPixel(origin), HexToPixel(agent.Coord));
+        AnimateUnitView(view, HexToPixel(origin), HexToPixel(group.Coord));
     }
 
     private void AnimateUnitView(Node2D view, Vector2 from, Vector2 to)
@@ -319,51 +310,24 @@ public partial class MainGame
         };
     }
 
-    private void SelectNextPieceOnTile(GameState state, HexTile tile, List<StackState> stacks, List<AgentState> agents)
+    private void SelectNextGroupOnTile(GameState state, List<GroupState> groups)
     {
         var selectedIndex = -1;
-        for (var i = 0; i < stacks.Count; i++)
+        for (var i = 0; i < groups.Count; i++)
         {
-            if (_selectedStackId == stacks[i].Id)
+            if (_selectedGroupId == groups[i].Id)
             {
                 selectedIndex = i;
                 break;
             }
         }
 
-        if (selectedIndex < 0)
-        {
-            for (var i = 0; i < agents.Count; i++)
-            {
-                if (_selectedAgentId == agents[i].Id)
-                {
-                    selectedIndex = stacks.Count + i;
-                    break;
-                }
-            }
-        }
-
-        var nextIndex = (selectedIndex + 1) % (stacks.Count + agents.Count);
-        if (nextIndex < stacks.Count)
-        {
-            SelectStack(state, stacks[nextIndex]);
-            return;
-        }
-
-        SelectAgent(state, agents[nextIndex - stacks.Count]);
+        SelectGroup(state, groups[(selectedIndex + 1) % groups.Count]);
     }
 
-    private void SelectStack(GameState state, StackState stack)
+    private void SelectGroup(GameState state, GroupState group)
     {
-        _selectedStackId = stack.Id;
-        _selectedAgentId = null;
-        _selectedRange = [];
-    }
-
-    private void SelectAgent(GameState state, AgentState agent)
-    {
-        _selectedAgentId = agent.Id;
-        _selectedStackId = null;
+        _selectedGroupId = group.Id;
         _selectedRange = [];
     }
 
@@ -371,39 +335,22 @@ public partial class MainGame
     {
         RangeCacheKey key;
 
-        if (_selectedStackId is { } stackId && state.Stacks.TryGetValue(stackId, out var stack))
+        if (_selectedGroupId is { } groupId && state.Groups.TryGetValue(groupId, out var group))
         {
-            if (!(stack.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer))
+            if (!(group.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer) || group.StationedCityId is not null)
             {
                 _selectedRange = [];
                 return;
             }
 
-            key = new RangeCacheKey(true, stackId, stack.Coord, stack.MovementLeft, state.MapVersion);
+            key = new RangeCacheKey(groupId, group.Coord, group.MovementLeft, state.MapVersion);
             if (key == _rangeCacheKey)
             {
                 _selectedRange = _cachedRange;
                 return;
             }
 
-            _selectedRange = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
-        }
-        else if (_selectedAgentId is { } agentId && state.Agents.TryGetValue(agentId, out var agent))
-        {
-            if (!(agent.FactionId == state.PlayerFaction.Id && state.CurrentFaction.IsPlayer))
-            {
-                _selectedRange = [];
-                return;
-            }
-
-            key = new RangeCacheKey(false, agentId, agent.Coord, agent.MovementLeft, state.MapVersion);
-            if (key == _rangeCacheKey)
-            {
-                _selectedRange = _cachedRange;
-                return;
-            }
-
-            _selectedRange = GameRules.MovementRange(state, agent.Coord, agent.MovementLeft);
+            _selectedRange = GameRules.MovementRange(state, group.Coord, group.MovementLeft);
         }
         else
         {

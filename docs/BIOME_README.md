@@ -18,7 +18,7 @@ Simple reference for the current terrain resolver.
 | `Arctic` | `Ice Sheet` | `Ice Sheet` | `Ice Sheet` |
 | `Subarctic` | `Tundra` | `Tundra` | `Taiga` |
 | `Temperate` | `Grassland` / `Shrubland` | `Conifer Forest` / `Broadleaf Forest` | `Swamp` |
-| `Tropical` | `Desert` / `Badlands` | `Prairie` | `Jungle` |
+| `Tropical` | `Desert` / `Badlands` | `Grassland` | `Jungle` |
 
 ## Variant Sliders
 

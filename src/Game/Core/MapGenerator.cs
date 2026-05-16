@@ -16,7 +16,7 @@ public static partial class MapGenerator
         // 2. assign saved biome regions,
         // 3. add hills, mountains, and peaks along region edges,
         // 4. add seas, lakes, and polar ice,
-        // 5. place resources, volcanoes, cities, armies, and agents.
+        // 5. place resources, volcanoes, cities, and starting groups.
         var random = new Random(seed);
         var state = new GameState
         {
@@ -25,7 +25,7 @@ public static partial class MapGenerator
             WorldGeneration = settings
         };
 
-        foreach (var faction in PickCivilizations(database, seed, settings.Civilizations))
+        foreach (var faction in PickCivilizations(database, seed, settings.Civilizations, settings.AllowedFactionIds))
         {
             // Copy definitions into state so the generated world owns its turn
             // order and save/load has the faction data it needs.
@@ -52,6 +52,7 @@ public static partial class MapGenerator
         AddMapDetails(state, random);
         ExpandDeepIce(state, seed);
         ClassifyWaterBodies(state);
+        MergeMatchingConnectedRegions(state);
         AddStartingPieces(state, seed);
 
         state.AddLog("Sandbox world created.");
@@ -96,10 +97,21 @@ public static partial class MapGenerator
         return Math.Clamp(civilizations, WorldGenerationSettings.MinCivilizations, WorldGenerationSettings.MaxCivilizations);
     }
 
-    private static List<FactionDefinition> PickCivilizations(GameDatabase database, int seed, int civilizations)
+    private static List<FactionDefinition> PickCivilizations(GameDatabase database, int seed, int civilizations, IReadOnlyCollection<string> allowedFactionIds)
     {
-        var count = Math.Min(NormalizeCivilizations(civilizations), database.Factions.Count);
-        var available = database.Factions.Values.OrderBy(f => f.Id).ToList();
+        var allowed = allowedFactionIds.Count == 0
+            ? database.Factions.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : allowedFactionIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var available = database.Factions.Values
+            .Where(faction => allowed.Contains(faction.Id))
+            .OrderBy(f => f.Id)
+            .ToList();
+        if (available.Count == 0)
+        {
+            available = database.Factions.Values.OrderBy(f => f.Id).Take(1).ToList();
+        }
+
+        var count = Math.Min(NormalizeCivilizations(civilizations), available.Count);
         var random = new Random(seed ^ unchecked((int)0x5f3759df));
         var selected = new List<FactionDefinition>(count);
 

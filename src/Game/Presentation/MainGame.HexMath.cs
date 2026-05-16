@@ -165,14 +165,9 @@ public partial class MainGame
 
     private HexCoord? SelectedCameraCoord(GameState state)
     {
-        if (_selectedStackId is { } stackId && state.Stacks.TryGetValue(stackId, out var stack))
+        if (_selectedGroupId is { } groupId && state.Groups.TryGetValue(groupId, out var group))
         {
-            return stack.Coord;
-        }
-
-        if (_selectedAgentId is { } agentId && state.Agents.TryGetValue(agentId, out var agent))
-        {
-            return agent.Coord;
+            return group.Coord;
         }
 
         return _inspectedTileCoord;

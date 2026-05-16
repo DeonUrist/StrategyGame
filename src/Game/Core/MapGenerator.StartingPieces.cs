@@ -14,19 +14,27 @@ public static partial class MapGenerator
             ToCoord(mapSize * 56 / 100, mapSize * 70 / 100),
             ToCoord(mapSize * 22 / 100, mapSize * 70 / 100)
         };
-        var stackId = 1;
-        var agentId = 1;
+        var groupId = 1;
+        var unitId = 1;
         for (var i = 0; i < state.Factions.Count; i++)
         {
-            // Each faction starts with one city, one authored army stack, and one agent.
+            // Each faction starts with one city and one stationed garrison group
+            // containing authored starting units plus the faction agent.
             // If the preferred start is water or rugged mountains, FindNearestStart
             // moves it to a flatter passable tile.
             var faction = state.Factions[i];
             var start = FindNearestStart(state, starts[i % starts.Length]);
             var cityName = CityNameGenerator.Generate(state.Database.Factions[faction.Id], seed ^ (i + 1));
             AddCity(state, i + 1, cityName, faction.Id, start);
-            AddStack(state, stackId++, faction.Id, start, StartingArmyUnits(state, faction.Id));
-            AddAgent(state, agentId++, faction.Id, UnitIdForRole(state, faction.Id, "agent"), $"{faction.Name} Agent", start);
+            AddGarrisonGroup(
+                state,
+                groupId++,
+                faction.Id,
+                start,
+                StartingArmyUnits(state, faction.Id).Concat([UnitIdForRole(state, faction.Id, "agent")]),
+                ref unitId,
+                $"{faction.Name} Agent",
+                i + 1);
         }
     }
 
@@ -51,25 +59,17 @@ public static partial class MapGenerator
         state.Map.Get(coord).CityId = id;
     }
 
-    private static void AddStack(GameState state, int id, string factionId, HexCoord coord, IEnumerable<string> units)
+    private static void AddGarrisonGroup(GameState state, int id, string factionId, HexCoord coord, IEnumerable<string> units, ref int unitId, string agentName, int cityId)
     {
-        var stack = new StackState { Id = id, FactionId = factionId, Coord = coord };
+        var group = new GroupState { Id = id, FactionId = factionId, Coord = coord, StationedCityId = cityId };
         foreach (var typeId in units)
         {
-            stack.Units.Add(new UnitInstance { TypeId = typeId });
+            var isAgent = state.Database.Units[typeId].Role.Equals("agent", StringComparison.OrdinalIgnoreCase);
+            group.Units.Add(new UnitInstance { Id = unitId++, TypeId = typeId, Name = isAgent ? agentName : null });
         }
 
-        state.Stacks[id] = stack;
-        // Tiles keep ID lists so drawing and click lookup can quickly find units.
-        state.Map.Get(coord).StackIds.Add(id);
-    }
-
-    private static void AddAgent(GameState state, int id, string factionId, string typeId, string name, HexCoord coord)
-    {
-        // New agents start loose on the map. Joining a stack later removes this
-        // id from the tile's AgentIds list.
-        state.Agents[id] = new AgentState { Id = id, FactionId = factionId, TypeId = typeId, Name = name, Coord = coord };
-        state.Map.Get(coord).AgentIds.Add(id);
+        state.Groups[id] = group;
+        state.Cities[cityId].StationedGroupIds.Add(id);
     }
 
     private static IEnumerable<string> StartingArmyUnits(GameState state, string factionId)

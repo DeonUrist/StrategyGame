@@ -25,9 +25,9 @@ public static partial class TerrainResolver
             TemperatureBand.Tropical => moisture switch
             {
                 MoistureLevel.Dry => PickVariant(BaseBiome.Desert, BaseBiome.Badlands, desertBadlandsBias, roll),
-                MoistureLevel.Normal => BaseBiome.Prairie,
+                MoistureLevel.Normal => BaseBiome.Grassland,
                 MoistureLevel.Wet => BaseBiome.Jungle,
-                _ => BaseBiome.Prairie
+                _ => BaseBiome.Grassland
             },
             _ => BaseBiome.Grassland
         };

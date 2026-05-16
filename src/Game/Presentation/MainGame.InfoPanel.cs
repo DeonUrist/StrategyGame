@@ -13,32 +13,36 @@ public partial class MainGame
             return;
         }
 
-        // Prefer selected stack text, then selected agent text, then a prompt.
-        // This mirrors the input priority where stack selection wins on a shared
-        // tile.
+        // Prefer selected group text, then a prompt.
         if (tile is not null)
         {
             _inspectedTileCoord = tile.Coord;
         }
 
-        var selected = _selectedStackId is { } stackId && state.Stacks.TryGetValue(stackId, out var stack)
-            ? StackPanelText(state, stack)
-            : _selectedAgentId is { } agentId && state.Agents.TryGetValue(agentId, out var agent)
-                ? AgentPanelText(state, agent)
-                : "Select an army or agent.";
+        var selected = _selectedGroupId is { } groupId && state.Groups.TryGetValue(groupId, out var group)
+            ? GroupPanelText(state, group)
+            : "Select a group.";
 
         var inspectedTile = _inspectedTileCoord is { } inspectedCoord && state.Map.TryGet(inspectedCoord, out var resolvedTile)
             ? resolvedTile
             : null;
 
         _selectionInfoLabel.Text = selected;
-        _attachToArmyButton.Visible = CanAttachSelectedAgent(state);
-        var canDetachLeader = _selectedStackId is { } selectedStackId
-                              && state.Stacks.TryGetValue(selectedStackId, out var selectedStack)
-                              && selectedStack.FactionId == state.PlayerFaction.Id
-                              && selectedStack.JoinedAgentIds.Count > 0;
-        _detachLeaderButton.Visible = canDetachLeader;
-        _detachLeaderButton.Disabled = !canDetachLeader;
+        var canStation = CanStationSelectedGroup(state);
+        _stationGroupButton.Visible = canStation;
+        _stationGroupButton.Disabled = !canStation;
+        var canDeploy = CanDeployFromInspectedCity(state, inspectedTile);
+        _deployGroupButton.Visible = canDeploy;
+        _deployGroupButton.Disabled = !canDeploy;
+        var canTransfer = CanTransferUnitsToSelectedGroup(state);
+        _transferUnitsButton.Visible = canTransfer;
+        _transferUnitsButton.Disabled = !canTransfer;
+        var canSplit = CanSplitSelectedGroup(state);
+        _splitGroupButton.Visible = canSplit;
+        _splitGroupButton.Disabled = !canSplit;
+        var canRename = CanRenameSelectedGroup(state);
+        _renameGroupButton.Visible = canRename;
+        _renameGroupButton.Disabled = !canRename;
         _tileInfoLabel.Text = inspectedTile is null
             ? "Inspect a tile to see terrain and city details."
             : TilePanelText(inspectedTile);
@@ -88,39 +92,30 @@ public partial class MainGame
         };
     }
 
-    private string StackPanelText(GameState state, StackState stack)
+    private string GroupPanelText(GameState state, GroupState group)
     {
-        var faction = _factionById[stack.FactionId];
-        var armyName = $"#{stack.Id}";
-        var units = string.Join(", ", stack.Units
+        var faction = _factionById[group.FactionId];
+        var units = string.Join(", ", group.Units
             .GroupBy(unit => unit.TypeId)
-            .Select(group =>
+            .Select(unitGroup =>
             {
-                var name = Escape(state.Database.Units[group.Key].Name);
-                return group.Count() == 1 ? name : $"{group.Count()} {name}";
+                var name = Escape(state.Database.Units[unitGroup.Key].Name);
+                return unitGroup.Count() == 1 ? name : $"{unitGroup.Count()} {name}";
             }));
-        var leaderText = stack.JoinedAgentIds.Count == 0
+        var agentText = group.Units.Where(unit => GameRules.IsAgentUnit(state, unit) && unit.Name is not null).ToList();
+        var agentUnitText = agentText.Count == 0
             ? ""
-            : $"\nAttached: {string.Join(", ", stack.JoinedAgentIds.Where(state.Agents.ContainsKey).Select(id => AttachedAgentLabel(state, state.Agents[id])))}";
+            : $"\nAgents: {string.Join(", ", agentText.Select(unit => UnitLabel(state, unit)))}";
+        var stationedText = group.StationedCityId is { } cityId && state.Cities.TryGetValue(cityId, out var city)
+            ? $"\nStationed: {Escape(city.Name)}"
+            : "";
 
-        return $"[b]Army {Escape(armyName)}[/b]"
-             + $"\nMoves: {FormatMoves(stack.MovementLeft)}/{FormatMoves(MaxStackMovement(state, stack))}"
+        return $"[b]{Escape(GameRules.GroupDisplayName(state, group))}[/b]"
+             + $"\nMoves: {FormatMoves(group.MovementLeft)}/{FormatMoves(GameRules.MaxGroupMovement(state, group))}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
-             + $"\nUnits: {units} | strength: {CombatResolver.StackStrength(state, stack)}"
-             + leaderText;
-    }
-
-    private string AgentPanelText(GameState state, AgentState agent)
-    {
-        var faction = _factionById[agent.FactionId];
-        var unit = state.Database.Units[agent.TypeId];
-
-        return $"[b]Agent:[/b] {ColorText(agent.Name, faction.Color)}"
-             + $"\nMoves: {FormatMoves(agent.MovementLeft)}/{FormatMoves(MaxAgentMovement(state, agent))}"
-             + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
-             + $"\nRole: {Escape(unit.Name)}"
-             + $"\nStats: damage {unit.Damage}, health {unit.Health}, armor {unit.Armor}"
-             + (agent.JoinedStackId is { } joinedStackId ? $"\nJoined to army {joinedStackId}" : "");
+             + $"\nUnits: {units} | strength: {CombatResolver.GroupStrength(state, group)}"
+             + agentUnitText
+             + stationedText;
     }
 
     private string CityPanelText(GameState state, CityState city)
@@ -129,7 +124,8 @@ public partial class MainGame
         var townCenter = SettlementProgression.CurrentTownCenter(state, city);
         return $"\nSettlement: {Escape(SettlementProgression.DisplayName(state, city))}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
-             + $"\nTown Center: {ColorText(townCenter.Name, BuildingColor(townCenter.Level))}";
+             + $"\nTown Center: {ColorText(townCenter.Name, BuildingColor(townCenter.Level))}"
+             + GarrisonPanelText(state, city);
     }
 
     private static string LogPanelText(GameLogEntry entry)
@@ -166,10 +162,10 @@ public partial class MainGame
         return turn % 2 == 0 ? "#88c0ff" : "#f0c86a";
     }
 
-    private static string AttachedAgentLabel(GameState state, AgentState agent)
+    private static string UnitLabel(GameState state, UnitInstance unit)
     {
-        var role = state.Database.Units[agent.TypeId].Name.ToLowerInvariant();
-        return $"{Escape(agent.Name)} ({Escape(role)})";
+        var role = state.Database.Units[unit.TypeId].Name.ToLowerInvariant();
+        return unit.Name is null ? Escape(role) : $"{Escape(unit.Name)} ({Escape(role)})";
     }
 
     private static string BuildingColor(int level)
@@ -186,30 +182,70 @@ public partial class MainGame
         };
     }
 
-    private bool CanAttachSelectedAgent(GameState state)
+    private string GarrisonPanelText(GameState state, CityState city)
     {
-        if (_selectedAgentId is not { } agentId || !state.Agents.TryGetValue(agentId, out var agent))
+        if (GameRules.GetCityGarrison(state, city.Id) is not { } garrison || garrison.Units.Count == 0)
         {
-            return false;
+            return "";
         }
 
-        return agent.FactionId == state.PlayerFaction.Id
-               && agent.JoinedStackId is null
-               && state.Map.Get(agent.Coord).StackIds.Select(id => state.Stacks[id]).Any(stack => stack.FactionId == agent.FactionId);
+        var units = string.Join(", ", garrison.Units
+            .GroupBy(unit => unit.TypeId)
+            .Select(unitGroup =>
+            {
+                var name = Escape(state.Database.Units[unitGroup.Key].Name);
+                return unitGroup.Count() == 1 ? name : $"{unitGroup.Count()} {name}";
+            }));
+
+        return $"\nGarrison: {units}";
+    }
+
+    private bool CanStationSelectedGroup(GameState state)
+    {
+        return _selectedGroupId is { } groupId
+               && state.Groups.TryGetValue(groupId, out var group)
+               && group.FactionId == state.PlayerFaction.Id
+               && group.StationedCityId is null
+               && state.Map.Get(group.Coord).CityId is { } cityId
+               && state.Cities[cityId].FactionId == group.FactionId;
+    }
+
+    private bool CanDeployFromInspectedCity(GameState state, HexTile? tile)
+    {
+        return tile?.CityId is { } cityId
+               && state.Cities[cityId].FactionId == state.PlayerFaction.Id
+               && GameRules.GetCityGarrison(state, cityId) is { Units.Count: > 0 };
+    }
+
+    private bool CanTransferUnitsToSelectedGroup(GameState state)
+    {
+        return _selectedGroupId is { } groupId
+               && state.Groups.TryGetValue(groupId, out var group)
+               && group.FactionId == state.PlayerFaction.Id
+               && group.StationedCityId is null
+               && state.Map.Get(group.Coord).GroupIds
+                   .Where(id => id != group.Id)
+                   .Select(id => state.Groups[id])
+                   .Any(other => other.FactionId == group.FactionId && other.StationedCityId is null);
+    }
+
+    private bool CanSplitSelectedGroup(GameState state)
+    {
+        return _selectedGroupId is { } groupId
+               && state.Groups.TryGetValue(groupId, out var group)
+               && group.FactionId == state.PlayerFaction.Id
+               && group.Units.Count > 1;
+    }
+
+    private bool CanRenameSelectedGroup(GameState state)
+    {
+        return _selectedGroupId is { } groupId
+               && state.Groups.TryGetValue(groupId, out var group)
+               && group.FactionId == state.PlayerFaction.Id;
     }
 
     private static string FormatMoves(double movement)
     {
         return movement % 1 == 0 ? movement.ToString("0.0").Replace(".0", "") : movement.ToString("0.0");
-    }
-
-    private static double MaxStackMovement(GameState state, StackState stack)
-    {
-        return stack.Units.Count == 0 ? 0.0 : stack.Units.Min(unit => state.Database.Units[unit.TypeId].Movement);
-    }
-
-    private static double MaxAgentMovement(GameState state, AgentState agent)
-    {
-        return state.Database.Units[agent.TypeId].Movement;
     }
 }

@@ -2,8 +2,7 @@ namespace StrategyGame.Core;
 
 public enum AiTurnStepKind
 {
-    StackMove,
-    AgentMove,
+    GroupMove,
     CityUpgrade
 }
 

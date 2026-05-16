@@ -12,16 +12,23 @@ var tests = new (string Name, Action Test)[]
     ("terrain variant sliders control generated pairs", TerrainVariantSlidersControlGeneratedPairs),
     ("sandbox respects custom map size", SandboxRespectsCustomMapSize),
     ("civilizations slider controls faction count", CivilizationsSliderControlsFactionCount),
+    ("allowed factions constrain civilization selection", AllowedFactionsConstrainCivilizationSelection),
+    ("matching connected regions merge", MatchingConnectedRegionsMerge),
     ("sandbox generation is deterministic", SandboxGenerationIsDeterministic),
     ("sandbox has ocean border and region climate bands", SandboxHasOceanBorderAndRegionClimateBands),
     ("sandbox has inland lakes and elevation features", SandboxHasInlandLakesAndElevationFeatures),
     ("elevation variance controls rugged terrain", ElevationVarianceControlsRuggedTerrain),
     ("factions start on passable island tiles", FactionsStartOnPassableIslandTiles),
     ("movement rejects water and spends movement", MovementRejectsWaterAndSpendsMovement),
-    ("agent move does not auto attach to army", AgentMoveDoesNotAutoAttachToArmy),
-    ("agent joins and detaches from army", AgentJoinsAndDetachesFromArmy),
+    ("deployed agent unit does not auto merge", DeployedAgentUnitDoesNotAutoMerge),
+    ("agent unit splits and merges through group rules", AgentUnitSplitsAndMergesThroughGroupRules),
+    ("group split and merge preserves indexes", GroupSplitAndMergePreservesIndexes),
+    ("group station and deploy uses city garrison", GroupStationAndDeployUsesCityGarrison),
+    ("partial deploy and station keeps one garrison", PartialDeployAndStationKeepsOneGarrison),
+    ("group rename persists through save load", GroupRenamePersistsThroughSaveLoad),
+    ("default group display uses faction adjective", DefaultGroupDisplayUsesFactionAdjective),
     ("city building upgrade replaces previous level", CityBuildingUpgradeReplacesPreviousLevel),
-    ("combat removes losing stack", CombatRemovesLosingStack),
+    ("combat removes losing group", CombatRemovesLosingGroup),
     ("director produces valid AI state", DirectorProducesValidAiState),
     ("stepwise director matches synchronous turn", StepwiseDirectorMatchesSynchronousTurn),
     ("save load preserves game state", SaveLoadPreservesGameState),
@@ -30,7 +37,7 @@ var tests = new (string Name, Action Test)[]
     ("movement overspend allows last step", MovementOverspendAllowsLastStep),
     ("turn cycling advances faction and counts turns", TurnCyclingAdvancesFactionAndCountsTurns),
     ("combat applies casualties to winner", CombatAppliesCasualtiesToWinner),
-    ("move stack fails for invalid destination", MoveStackFailsForInvalidDestination)
+    ("move group fails for invalid destination", MoveGroupFailsForInvalidDestination)
 };
 
 var requestedTests = SelectTests(tests, args);
@@ -97,7 +104,7 @@ void TerrainResolverAppliesRegionBiomeTables()
     Assert(Pick(MoistureLevel.Normal, TemperatureBand.Subarctic) == BaseBiome.Tundra, "subarctic normal should pick Tundra");
     Assert(Pick(MoistureLevel.Wet, TemperatureBand.Subarctic) == BaseBiome.Taiga, "subarctic wet should pick Taiga");
     Assert(Pick(MoistureLevel.Wet, TemperatureBand.Temperate) == BaseBiome.Swamp, "temperate wet should pick Swamp");
-    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Tropical) == BaseBiome.Prairie, "tropical normal should pick Prairie");
+    Assert(Pick(MoistureLevel.Normal, TemperatureBand.Tropical) == BaseBiome.Grassland, "tropical normal should pick Grassland");
     Assert(Pick(MoistureLevel.Wet, TemperatureBand.Tropical) == BaseBiome.Jungle, "tropical wet should pick Jungle");
     Assert(Pick(MoistureLevel.Dry, TemperatureBand.Temperate, grasslandShrubland: 0) == BaseBiome.Grassland, "0 grassland/shrubland bias should pick Grassland");
     Assert(Pick(MoistureLevel.Dry, TemperatureBand.Temperate, grasslandShrubland: 100) == BaseBiome.Shrubland, "100 grassland/shrubland bias should pick Shrubland");
@@ -123,7 +130,6 @@ void TerrainMovementCostsUseTerrainAndElevation()
 {
     Assert(Cost("Grassland") == 1.0, "flat grassland should cost 1.0");
     Assert(Cost("Shrubland") == 1.0, "flat shrubland should cost 1.0");
-    Assert(Cost("Prairie") == 1.0, "flat prairie should cost 1.0");
     Assert(Cost("Desert") == 1.5, "flat desert should cost 1.5");
     Assert(Cost("Tundra") == 1.5, "flat tundra should cost 1.5");
     Assert(Cost("Badlands") == 1.5, "flat badlands should cost 1.5");
@@ -184,6 +190,58 @@ void CivilizationsSliderControlsFactionCount()
     Assert(full.Factions.Select(f => f.Id).Distinct().Count() == 6, "generated civilizations should not repeat faction types");
     Assert(full.Factions.Count(f => f.IsPlayer) == 1, "generated world should have exactly one player faction");
     Assert(full.Cities.Count == 6, "each civilization should start with one settlement");
+}
+
+void AllowedFactionsConstrainCivilizationSelection()
+{
+    var state = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings
+    {
+        Civilizations = 6,
+        AllowedFactionIds = ["humans", "elves"]
+    });
+
+    Assert(state.Factions.Count == 2, "allowed faction list should cap generated civilizations");
+    Assert(state.Factions.Select(f => f.Id).Order().SequenceEqual(["elves", "humans"]), "generated factions should come from allowed list only");
+    Assert(!state.Factions.Any(f => f.Id == "undead"), "disabled undead should not be generated when omitted");
+}
+
+void MatchingConnectedRegionsMerge()
+{
+    var state = new GameState
+    {
+        Database = database,
+        Map = new HexMap()
+    };
+
+    AddRegion(state, 1, MoistureLevel.Normal, TemperatureBand.Subarctic, BaseBiome.Tundra, "Tundra");
+    AddRegion(state, 2, MoistureLevel.Dry, TemperatureBand.Subarctic, BaseBiome.Tundra, "Tundra");
+    AddRegion(state, 3, MoistureLevel.Wet, TemperatureBand.Temperate, BaseBiome.Swamp, "Swamp");
+    AddRegion(state, 4, MoistureLevel.Normal, TemperatureBand.Subarctic, BaseBiome.Tundra, "Tundra");
+    AddRegion(state, 5, MoistureLevel.Dry, TemperatureBand.Temperate, BaseBiome.Tundra, "Tundra");
+
+    AddTile(state, new HexCoord(0, 0), 1);
+    AddTile(state, new HexCoord(1, 0), 2);
+    AddTile(state, new HexCoord(2, 0), 3);
+    AddTile(state, new HexCoord(6, 0), 4);
+    AddTile(state, new HexCoord(0, 1), 5);
+
+    MapGenerator.MergeMatchingConnectedRegions(state);
+
+    Assert(state.Regions.ContainsKey(1), "lowest connected matching region id should survive");
+    Assert(!state.Regions.ContainsKey(2), "connected same-biome region should merge even when moisture differs");
+    Assert(state.Regions.ContainsKey(3), "different-biome neighbor should remain separate");
+    Assert(state.Regions.ContainsKey(4), "disconnected matching region should remain separate");
+    Assert(state.Regions.ContainsKey(5), "same-biome neighbor with different temperature should remain separate");
+    Assert(state.Map.Get(new HexCoord(0, 0)).RegionId == 1, "survivor tile should keep survivor region id");
+    Assert(state.Map.Get(new HexCoord(1, 0)).RegionId == 1, "merged tile should update to survivor region id");
+    Assert(state.Map.Get(new HexCoord(1, 0)).Moisture == state.Regions[1].Moisture, "merged tile moisture should normalize to survivor region moisture");
+    Assert(state.Map.Get(new HexCoord(2, 0)).RegionId == 3, "different-biome tile should keep region id");
+    Assert(state.Map.Get(new HexCoord(6, 0)).RegionId == 4, "disconnected matching tile should keep region id");
+    Assert(state.Map.Get(new HexCoord(0, 1)).RegionId == 5, "different-temperature tile should keep region id");
+    Assert(state.Regions[1].TileCoords.SequenceEqual([new HexCoord(0, 0), new HexCoord(1, 0)]), "survivor tile list should be rebuilt in map order");
+    Assert(state.Regions[3].TileCoords.SequenceEqual([new HexCoord(2, 0)]), "unmerged tile list should be rebuilt");
+    Assert(state.Regions[4].TileCoords.SequenceEqual([new HexCoord(6, 0)]), "disconnected matching tile list should be rebuilt");
+    Assert(state.Regions[5].TileCoords.SequenceEqual([new HexCoord(0, 1)]), "different-temperature tile list should be rebuilt");
 }
 
 void TerrainVariantSlidersControlGeneratedPairs()
@@ -347,16 +405,17 @@ void ElevationVarianceControlsRuggedTerrain()
 void FactionsStartOnPassableIslandTiles()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    Assert(state.StacksForFaction(state.PlayerFaction.Id).Count() == 1, "player should start with one army stack");
-    Assert(state.AgentsForFaction(state.PlayerFaction.Id).Count() == 1, "player should start with one loose agent");
+    Assert(state.GroupsForFaction(state.PlayerFaction.Id).Count() == 1, "player should start with one garrison group");
     foreach (var faction in state.Factions)
     {
-        var stack = state.StacksForFaction(faction.Id).Single();
+        var stack = GarrisonGroup(state, faction.Id);
         var expectedCount = database.Factions[faction.Id].StartingArmy.Values.Sum();
-        Assert(stack.Units.Count == expectedCount, $"{faction.Id} starting army should follow factions.json");
-        Assert(stack.Units.All(unit => unit.TypeId.StartsWith($"{faction.Id}_", StringComparison.OrdinalIgnoreCase)), $"{faction.Id} stack should use faction unit ids");
-        var agent = state.AgentsForFaction(faction.Id).Single();
-        Assert(agent.TypeId == $"{faction.Id}_agent", $"{faction.Id} agent should use faction agent unit");
+        Assert(stack.StationedCityId is not null, $"{faction.Id} starting group should be stationed");
+        Assert(stack.Units.Count == expectedCount + 1, $"{faction.Id} starting garrison should follow factions.json and include agent");
+        Assert(stack.Units.All(unit => unit.TypeId.StartsWith($"{faction.Id}_", StringComparison.OrdinalIgnoreCase)), $"{faction.Id} group should use faction unit ids");
+        var agent = stack.Units.Single(unit => GameRules.IsAgentUnit(state, unit));
+        Assert(agent.TypeId == $"{faction.Id}_agent", $"{faction.Id} agent unit missing");
+        Assert(agent.Name == $"{faction.Name} Agent", $"{faction.Id} agent unit should preserve name");
     }
 
     foreach (var city in state.Cities.Values)
@@ -364,74 +423,166 @@ void FactionsStartOnPassableIslandTiles()
         Assert(TerrainResolver.Resolve(state, state.Map.Get(city.Coord)).Passable, $"{city.Name} should start on passable land");
     }
 
-    foreach (var stack in state.Stacks.Values)
+    foreach (var group in state.Groups.Values)
     {
-        Assert(TerrainResolver.Resolve(state, state.Map.Get(stack.Coord)).Passable, $"stack {stack.Id} should start on passable land");
-    }
-
-    foreach (var agent in state.Agents.Values)
-    {
-        Assert(TerrainResolver.Resolve(state, state.Map.Get(agent.Coord)).Passable, $"agent {agent.Id} should start on passable land");
+        Assert(TerrainResolver.Resolve(state, state.Map.Get(group.Coord)).Passable, $"group {group.Id} should start on passable land");
+        Assert(!state.Map.Get(group.Coord).GroupIds.Contains(group.Id), $"group {group.Id} should start in garrison");
     }
 }
 
 void MovementRejectsWaterAndSpendsMovement()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
-    var range = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
-    Assert(range.Count > 1, "player stack should have reachable tiles");
+    var group = DeployGarrison(state, state.PlayerFaction.Id);
+    var range = GameRules.MovementRange(state, group.Coord, group.MovementLeft);
+    Assert(range.Count > 1, "player group should have reachable tiles");
     Assert(range.Keys.All(c => TerrainResolver.Resolve(state, state.Map.Get(c)).Passable), "movement range should exclude impassable water");
 
     var destination = range.Where(kv => kv.Value > 0).OrderBy(kv => kv.Value).First();
-    var moved = GameRules.TryMoveStack(state, stack.Id, destination.Key);
-    Assert(moved, "stack should move to reachable destination");
-    Assert(stack.Coord == destination.Key, "stack coord should update");
-    Assert(stack.MovementLeft == 2 - destination.Value, "stack movement should be reduced by movement cost");
+    var moved = GameRules.TryMoveGroup(state, group.Id, destination.Key);
+    Assert(moved, "group should move to reachable destination");
+    Assert(group.Coord == destination.Key, "group coord should update");
+    Assert(group.MovementLeft == 2 - destination.Value, "group movement should be reduced by movement cost");
 }
 
-void AgentMoveDoesNotAutoAttachToArmy()
+void DeployedAgentUnitDoesNotAutoMerge()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
-    var agent = state.AgentsForFaction(state.PlayerFaction.Id).First();
+    var group = DeployGarrison(state, state.PlayerFaction.Id);
+    var agentUnit = group.Units.Single(unit => GameRules.IsAgentUnit(state, unit));
+    var agentGroupId = GameRules.TrySplitGroup(state, group.Id, [agentUnit.Id])
+        ?? throw new InvalidOperationException("agent split did not return a group");
+    var agentGroup = state.Groups[agentGroupId];
+    agentGroup.MovementLeft = 10;
 
-    state.Map.Get(agent.Coord).AgentIds.Remove(agent.Id);
-    agent.Coord = stack.Coord;
-    agent.MovementLeft = 10;
-    state.Map.Get(stack.Coord).AgentIds.Add(agent.Id);
+    var neighbor = state.Map.Neighbors(group.Coord)
+        .First(tile => TerrainResolver.Resolve(state, tile).Passable && !tile.GroupIds.Contains(group.Id));
 
-    var neighbor = state.Map.Neighbors(stack.Coord)
-        .First(tile => TerrainResolver.Resolve(state, tile).Passable && !tile.StackIds.Contains(stack.Id));
+    var movedAway = GameRules.TryMoveGroup(state, agentGroup.Id, neighbor.Coord);
+    Assert(movedAway, "agent group should move away from group tile");
 
-    var movedAway = GameRules.TryMoveAgent(state, agent.Id, neighbor.Coord);
-    Assert(movedAway, "agent should move away from army tile");
-    Assert(agent.JoinedStackId is null, "moving agent should stay loose");
-
-    var movedBack = GameRules.TryMoveAgent(state, agent.Id, stack.Coord);
-    Assert(movedBack, "agent should move back onto army tile");
-    Assert(agent.JoinedStackId is null, "agent should not auto-attach when entering friendly army tile");
-    Assert(stack.JoinedAgentIds.Count == 0, "army should not gain attached agents without explicit attach");
-    Assert(state.Map.Get(stack.Coord).AgentIds.Contains(agent.Id), "loose agent should remain on tile index after returning");
+    var movedBack = GameRules.TryMoveGroup(state, agentGroup.Id, group.Coord);
+    Assert(movedBack, "agent group should move back onto group tile");
+    Assert(state.Groups.ContainsKey(agentGroup.Id), "agent group should remain independent");
+    Assert(!group.Units.Any(unit => GameRules.IsAgentUnit(state, unit)), "group should not gain agent units without explicit merge");
+    Assert(state.Map.Get(group.Coord).GroupIds.Contains(agentGroup.Id), "loose agent group should remain on tile index after returning");
 }
 
-void AgentJoinsAndDetachesFromArmy()
+void AgentUnitSplitsAndMergesThroughGroupRules()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
-    var agent = state.AgentsForFaction(state.PlayerFaction.Id).First();
+    var group = DeployGarrison(state, state.PlayerFaction.Id);
+    var agentUnitId = group.Units.Single(unit => GameRules.IsAgentUnit(state, unit)).Id;
+    var agentGroupId = GameRules.TrySplitGroup(state, group.Id, [agentUnitId])
+        ?? throw new InvalidOperationException("agent split did not return a group");
+    var agentGroup = state.Groups[agentGroupId];
 
-    var joined = GameRules.TryJoinAgentToStack(state, agent.Id, stack.Id);
-    Assert(joined, "agent should join colocated friendly army");
-    Assert(stack.JoinedAgentIds.SequenceEqual([agent.Id]), "stack should track joined agent");
-    Assert(agent.JoinedStackId == stack.Id, "agent should track joined stack");
-    Assert(!state.Map.Get(stack.Coord).AgentIds.Contains(agent.Id), "joined agent should leave tile agent list");
+    var joined = GameRules.TryMergeGroups(state, agentGroup.Id, group.Id);
+    Assert(joined, "agent group should join colocated friendly group");
+    Assert(!state.Groups.ContainsKey(agentGroup.Id), "merged agent group should be removed");
+    Assert(group.Units.Any(unit => unit.Id == agentUnitId), "target group should contain joined agent unit");
+    Assert(!state.Map.Get(group.Coord).GroupIds.Contains(agentGroup.Id), "joined agent group should leave tile group list");
 
-    var detached = GameRules.TryDetachLeader(state, stack.Id);
-    Assert(detached, "leader should detach");
-    Assert(stack.JoinedAgentIds.Count == 0, "stack joined agents should clear");
-    Assert(agent.JoinedStackId is null, "agent joined stack should clear");
-    Assert(state.Map.Get(stack.Coord).AgentIds.Contains(agent.Id), "detached agent should return to tile agent list");
+    var splitGroupId = GameRules.TrySplitGroup(state, group.Id, [agentUnitId]);
+    Assert(splitGroupId is not null, "agent unit should split");
+    Assert(!group.Units.Any(unit => unit.Id == agentUnitId), "source group should lose split agent unit");
+    var splitId = splitGroupId ?? throw new InvalidOperationException("split did not return a group id");
+    Assert(state.Groups[splitId].Units.Single().Id == agentUnitId, "split group should preserve agent unit identity");
+    Assert(state.Map.Get(group.Coord).GroupIds.Contains(splitId), "split agent group should return to tile group list");
+}
+
+void GroupSplitAndMergePreservesIndexes()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var group = DeployGarrison(state, state.PlayerFaction.Id);
+    var origin = group.Coord;
+    var splitUnit = group.Units[0];
+
+    var splitId = GameRules.TrySplitGroup(state, group.Id, [splitUnit.Id])
+        ?? throw new InvalidOperationException("split did not return a group id");
+
+    Assert(state.Groups.ContainsKey(splitId), "split should create a new group");
+    Assert(state.Groups[splitId].Units.Single().Id == splitUnit.Id, "split should preserve unit identity");
+    Assert(state.Map.Get(origin).GroupIds.Contains(group.Id), "source group should remain indexed on tile");
+    Assert(state.Map.Get(origin).GroupIds.Contains(splitId), "split group should be indexed on tile");
+
+    var merged = GameRules.TryMergeGroups(state, splitId, group.Id);
+    Assert(merged, "same-tile friendly groups should merge");
+    Assert(!state.Groups.ContainsKey(splitId), "merged source group should be removed");
+    Assert(group.Units.Any(unit => unit.Id == splitUnit.Id), "merged target should regain split unit");
+    Assert(!state.Map.Get(origin).GroupIds.Contains(splitId), "merged source group should leave tile index");
+}
+
+void GroupStationAndDeployUsesCityGarrison()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var group = DeployGarrison(state, state.PlayerFaction.Id);
+    var city = state.Cities.Values.Single(city => city.FactionId == state.PlayerFaction.Id);
+
+    var stationed = GameRules.TryStationGroup(state, group.Id, city.Id);
+    Assert(stationed, "group should station at friendly colocated city");
+    Assert(group.StationedCityId == city.Id, "stationed group should reference city");
+    Assert(city.StationedGroupIds.Contains(group.Id), "city should reference stationed group");
+    Assert(!state.Map.Get(city.Coord).GroupIds.Contains(group.Id), "stationed group should leave tile index");
+    Assert(!GameRules.TryMoveGroup(state, group.Id, state.Map.Neighbors(city.Coord).First().Coord), "stationed group should not move");
+
+    var deployed = GameRules.TryDeployGroup(state, group.Id);
+    Assert(deployed, "stationed group should deploy from city");
+    Assert(group.StationedCityId is null, "deployed group should clear stationed city");
+    Assert(!city.StationedGroupIds.Contains(group.Id), "deployed group should leave city garrison");
+    Assert(state.Map.Get(city.Coord).GroupIds.Contains(group.Id), "deployed group should return to tile index");
+}
+
+void PartialDeployAndStationKeepsOneGarrison()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var city = state.Cities.Values.Single(city => city.FactionId == state.PlayerFaction.Id);
+    var garrison = GarrisonGroup(state, state.PlayerFaction.Id);
+    var originalCount = garrison.Units.Count;
+    var unitId = garrison.Units.First().Id;
+
+    var deployedId = GameRules.TryDeployUnits(state, city.Id, [unitId])
+        ?? throw new InvalidOperationException("partial deploy did not return a group id");
+    var deployed = state.Groups[deployedId];
+
+    Assert(deployed.StationedCityId is null, "partial deploy should create a map group");
+    Assert(state.Map.Get(city.Coord).GroupIds.Contains(deployed.Id), "partial deploy should index deployed group on city tile");
+    Assert(city.StationedGroupIds.Count == 1, "city should keep one garrison group after partial deploy");
+    Assert(garrison.Units.Count == originalCount - 1, "garrison should lose deployed unit");
+
+    var stationed = GameRules.TryStationUnits(state, deployed.Id, city.Id, [unitId]);
+    Assert(stationed, "partial station should return unit to garrison");
+    Assert(!state.Groups.ContainsKey(deployed.Id), "empty deployed group should be removed after stationing all units");
+    Assert(city.StationedGroupIds.Count == 1, "city should still have one garrison group after stationing");
+    Assert(garrison.Units.Count == originalCount, "garrison should regain stationed unit");
+    Assert(garrison.Units.Any(unit => unit.Id == unitId), "garrison should contain the same unit identity");
+}
+
+void GroupRenamePersistsThroughSaveLoad()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var group = DeployGarrison(state, state.PlayerFaction.Id);
+
+    var renamed = GameRules.TryRenameGroup(state, group.Id, "First Patrol");
+    Assert(renamed, "group rename should succeed");
+
+    var loaded = GameStateSerializer.FromJson(database, GameStateSerializer.ToJson(state));
+    Assert(loaded.Groups[group.Id].Name == "First Patrol", "renamed group should persist through save/load");
+}
+
+void DefaultGroupDisplayUsesFactionAdjective()
+{
+    var state = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings
+    {
+        Civilizations = 1,
+        AllowedFactionIds = ["elves"]
+    });
+    var group = GarrisonGroup(state, "elves");
+    var agentUnitId = group.Units.Single(unit => GameRules.IsAgentUnit(state, unit)).Id;
+    var agentGroupId = GameRules.TryDeployUnits(state, state.Cities.Values.Single().Id, [agentUnitId])
+        ?? throw new InvalidOperationException("agent deploy did not return a group id");
+
+    Assert(GameRules.GroupDisplayName(state, state.Groups[agentGroupId]) == "Elven", "unnamed single-agent group should use faction adjective");
 }
 
 void CityBuildingUpgradeReplacesPreviousLevel()
@@ -456,24 +607,22 @@ void CityBuildingUpgradeReplacesPreviousLevel()
     Assert(state.Log.Any(entry => entry.Text.Contains("upgraded to Homestead", StringComparison.OrdinalIgnoreCase)), "upgrade should be logged");
 }
 
-void CombatRemovesLosingStack()
+void CombatRemovesLosingGroup()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var attacker = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var attacker = DeployGarrison(state, state.PlayerFaction.Id);
     var enemyFactionId = state.Factions.First(f => !f.IsPlayer).Id;
-    var defender = state.StacksForFaction(enemyFactionId).First();
-    var leader = state.AgentsForFaction(enemyFactionId).First();
-    state.Map.Get(leader.Coord).AgentIds.Remove(leader.Id);
-    leader.Coord = defender.Coord;
-    GameRules.TryJoinAgentToStack(state, leader.Id, defender.Id);
+    var defender = DeployGarrison(state, enemyFactionId);
+    var leaderUnit = defender.Units.Single(unit => GameRules.IsAgentUnit(state, unit));
+    var leaderUnitId = leaderUnit.Id;
     defender.Units.Clear();
-    defender.Units.Add(new UnitInstance { TypeId = $"{enemyFactionId}_militia" });
+    defender.Units.Add(new UnitInstance { Id = 10000, TypeId = $"{enemyFactionId}_militia" });
+    defender.Units.Add(leaderUnit);
 
     CombatResolver.Resolve(state, attacker, defender);
-    Assert(state.Stacks.ContainsKey(attacker.Id), "attacker should survive favorable combat");
-    Assert(!state.Stacks.ContainsKey(defender.Id), "weak defender should be removed");
-    Assert(leader.JoinedStackId is null, "defeated army should release attached agents");
-    Assert(state.Map.Get(defender.Coord).AgentIds.Contains(leader.Id), "released leader should remain on the defeated army tile");
+    Assert(state.Groups.ContainsKey(attacker.Id), "attacker should survive favorable combat");
+    Assert(!state.Groups.ContainsKey(defender.Id), "weak defender should be removed");
+    Assert(!state.Groups.Values.SelectMany(group => group.Units).Any(unit => unit.Id == leaderUnitId), "defeated group should lose agent unit with the group");
 }
 
 void DirectorProducesValidAiState()
@@ -483,10 +632,10 @@ void DirectorProducesValidAiState()
     GameRules.AdvanceTurn(state);
     director.TakeTurn(state, state.CurrentFaction.Id);
 
-    foreach (var stack in state.Stacks.Values)
+    foreach (var group in state.Groups.Values.Where(group => group.StationedCityId is null))
     {
-        Assert(state.Map.TryGet(stack.Coord, out var tile), "stack coord should remain on map");
-        Assert(tile.StackIds.Contains(stack.Id), "tile should reference resident stack");
+        Assert(state.Map.TryGet(group.Coord, out var tile), "group coord should remain on map");
+        Assert(tile.GroupIds.Contains(group.Id), "tile should reference resident group");
     }
 
     Assert(state.Log.Any(entry => entry.Text.Contains("director chose", StringComparison.OrdinalIgnoreCase)), "director should log weighted action");
@@ -513,9 +662,8 @@ void SaveLoadPreservesGameState()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
     state.FogOfWarEnabled = true;
-    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
-    var agent = state.AgentsForFaction(state.PlayerFaction.Id).First();
-    GameRules.TryJoinAgentToStack(state, agent.Id, stack.Id);
+    var stack = GarrisonGroup(state, state.PlayerFaction.Id);
+    var agentUnitId = stack.Units.Single(unit => GameRules.IsAgentUnit(state, unit)).Id;
     GameRules.AdvanceTurn(state);
 
     var json = GameStateSerializer.ToJson(state);
@@ -529,9 +677,9 @@ void SaveLoadPreservesGameState()
     Assert(loaded.WorldGeneration.DesertBadlandsBias == state.WorldGeneration.DesertBadlandsBias, "loaded state should retain desert/badlands bias");
     Assert(loaded.WorldGeneration.ConiferBroadleafForestBias == state.WorldGeneration.ConiferBroadleafForestBias, "loaded state should retain conifer/broadleaf bias");
     Assert(loaded.Map.Tiles.Where(t => t.Elevation == Elevation.Coast).All(t => t.WaterBodyKind != WaterBodyKind.None), "loaded coast tiles should retain water-body classification");
-    Assert(loaded.Map.Get(stack.Coord).StackIds.Contains(stack.Id), "loaded map should retain stack tile index");
-    Assert(loaded.Stacks[stack.Id].JoinedAgentIds.SequenceEqual([agent.Id]), "loaded stack should retain joined leader");
-    Assert(loaded.Agents[agent.Id].JoinedStackId == stack.Id, "loaded agent should retain joined stack");
+    Assert(loaded.Cities[stack.StationedCityId!.Value].StationedGroupIds.Contains(stack.Id), "loaded city should retain garrison group index");
+    Assert(!loaded.Map.Get(stack.Coord).GroupIds.Contains(stack.Id), "loaded garrison should not appear on map tile index");
+    Assert(loaded.Groups[stack.Id].Units.Any(unit => unit.Id == agentUnitId), "loaded garrison should retain agent unit");
 }
 
 void FogVisibilityRulesGatePlayerVision()
@@ -567,7 +715,7 @@ void LoadedAiTurnReplaysDeterministically()
 void MovementOverspendAllowsLastStep()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var stack = DeployGarrison(state, state.PlayerFaction.Id);
 
     // With 0.5 movement left, a unit should still be able to enter a tile
     // that costs 1.0 — spending the remainder and arriving with 0 left.
@@ -616,46 +764,84 @@ void TurnCyclingAdvancesFactionAndCountsTurns()
 void CombatAppliesCasualtiesToWinner()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var attacker = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var attacker = DeployGarrison(state, state.PlayerFaction.Id);
     var enemyFactionId = state.Factions.First(f => !f.IsPlayer).Id;
-    var defender = state.StacksForFaction(enemyFactionId).First();
+    var defender = DeployGarrison(state, enemyFactionId);
 
     attacker.Units.Clear();
     for (var i = 0; i < 20; i++)
     {
-        attacker.Units.Add(new UnitInstance { TypeId = "humans_soldier" });
+        attacker.Units.Add(new UnitInstance { Id = 20000 + i, TypeId = "humans_soldier" });
     }
     defender.Units.Clear();
-    defender.Units.Add(new UnitInstance { TypeId = $"{enemyFactionId}_militia" });
+    defender.Units.Add(new UnitInstance { Id = 30000, TypeId = $"{enemyFactionId}_militia" });
 
     var countBefore = attacker.Units.Count;
     CombatResolver.Resolve(state, attacker, defender);
 
-    Assert(state.Stacks.ContainsKey(attacker.Id), "dominant attacker should survive");
-    Assert(!state.Stacks.ContainsKey(defender.Id), "weak defender should be removed");
+    Assert(state.Groups.ContainsKey(attacker.Id), "dominant attacker should survive");
+    Assert(!state.Groups.ContainsKey(defender.Id), "weak defender should be removed");
     var expected = Math.Max(1, (int)Math.Round(countBefore * 0.75));
     Assert(attacker.Units.Count == expected, $"winner should lose 25% of its units: {countBefore} -> {expected}");
 }
 
-void MoveStackFailsForInvalidDestination()
+void MoveGroupFailsForInvalidDestination()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
-    var stack = state.StacksForFaction(state.PlayerFaction.Id).First();
+    var stack = DeployGarrison(state, state.PlayerFaction.Id);
     var originalCoord = stack.Coord;
 
     // Ocean is impassable — move should be rejected.
     var oceanCoord = state.Map.Tiles.First(t => t.Elevation == Elevation.Ocean).Coord;
-    Assert(!GameRules.TryMoveStack(state, stack.Id, oceanCoord), "move to ocean tile should fail");
-    Assert(stack.Coord == originalCoord, "failed move should not change stack position");
-    Assert(state.Map.Get(originalCoord).StackIds.Contains(stack.Id), "tile index should be unchanged after failed ocean move");
+    Assert(!GameRules.TryMoveGroup(state, stack.Id, oceanCoord), "move to ocean tile should fail");
+    Assert(stack.Coord == originalCoord, "failed move should not change group position");
+    Assert(state.Map.Get(originalCoord).GroupIds.Contains(stack.Id), "tile index should be unchanged after failed ocean move");
 
     // Destination too far to reach in one turn should also fail.
     var farCoord = state.Map.Tiles
         .Where(t => TerrainResolver.Resolve(state, t).Passable)
         .OrderByDescending(t => t.Coord.DistanceTo(originalCoord))
         .First().Coord;
-    Assert(!GameRules.TryMoveStack(state, stack.Id, farCoord), "move beyond movement range should fail");
-    Assert(stack.Coord == originalCoord, "failed out-of-range move should not change stack position");
+    Assert(!GameRules.TryMoveGroup(state, stack.Id, farCoord), "move beyond movement range should fail");
+    Assert(stack.Coord == originalCoord, "failed out-of-range move should not change group position");
+}
+
+GroupState GarrisonGroup(GameState state, string factionId)
+{
+    return state.GroupsForFaction(factionId).Single(group => group.StationedCityId is not null);
+}
+
+GroupState DeployGarrison(GameState state, string factionId)
+{
+    var group = GarrisonGroup(state, factionId);
+    var deployed = GameRules.TryDeployGroup(state, group.Id);
+    Assert(deployed, $"{factionId} garrison should deploy");
+    return group;
+}
+
+void AddRegion(GameState state, int id, MoistureLevel moisture, TemperatureBand temperature, BaseBiome baseBiome, string finalBiomeName)
+{
+    state.Regions[id] = new RegionState
+    {
+        Id = id,
+        Name = $"Region {id}",
+        Moisture = moisture,
+        Temperature = temperature,
+        BaseBiome = baseBiome,
+        FinalBiomeName = finalBiomeName
+    };
+}
+
+void AddTile(GameState state, HexCoord coord, int regionId)
+{
+    state.Map.Add(new HexTile
+    {
+        Coord = coord,
+        Elevation = Elevation.Flat,
+        Moisture = state.Regions[regionId].Moisture,
+        RegionId = regionId
+    });
+    state.Regions[regionId].TileCoords.Add(coord);
 }
 
 void Run(string name, Action test)
@@ -752,7 +938,6 @@ bool IsAllowedLandTerrain(string name)
         or "Swamp"
         or "Desert"
         or "Badlands"
-        or "Prairie"
         or "Jungle";
 }
 

@@ -28,11 +28,16 @@ public partial class MainGame : Node2D
     private Label _logHeaderLabel = null!;
     private VBoxContainer _actionMenuButtons = null!;
     private Button _loadGameButton = null!;
-    private Button _attachToArmyButton = null!;
-    private Button _detachLeaderButton = null!;
+    private Button _stationGroupButton = null!;
+    private Button _deployGroupButton = null!;
+    private Button _transferUnitsButton = null!;
+    private Button _splitGroupButton = null!;
+    private Button _renameGroupButton = null!;
     private Button _endTurnButton = null!;
     private Button _gearButton = null!;
     private Button _logToggleButton = null!;
+    private CheckBox _gridVisibleCheckBox = null!;
+    private CheckBox _resourceIconsVisibleCheckBox = null!;
     private Control _actionMenuPanel = null!;
     private Control _gearMenuPanel = null!;
     private Control _logPanel = null!;
@@ -59,24 +64,25 @@ public partial class MainGame : Node2D
     private HSlider _elevationSlider = null!;
     private HSlider _maxSeaSlider = null!;
     private HSlider _climateBiasSlider = null!;
+    private readonly Dictionary<string, CheckBox> _raceAllowedChecks = [];
     private string _savePath = "";
     private string _settingsPath = "";
     private PresentationSettings _settings = new();
 
-    // Selection stores either a stack id or an agent id. _selectedRange is the
-    // precomputed movement map used both for highlighting and validating clicks.
-    private int? _selectedStackId;
-    private int? _selectedAgentId;
+    // Selection stores a group id. _selectedRange is the precomputed movement
+    // map used both for highlighting and validating clicks.
+    private int? _selectedGroupId;
     private HexCoord? _inspectedTileCoord;
+    private int? _selectedRegionId;
     private bool _isLogCollapsed;
     private bool _gridVisible = true;
+    private bool _resourceIconsVisible = true;
     private Dictionary<HexCoord, double> _selectedRange = [];
     private bool _mapInputLocked;
     private string? _capturingKeyBinding;
 
     // Range cache: reuse the last Dijkstra result when the unit and map are unchanged.
-    // IsStack distinguishes stack vs agent IDs (both int, different namespaces).
-    private record struct RangeCacheKey(bool IsStack, int UnitId, HexCoord Coord, double MovementLeft, int MapVersion);
+    private record struct RangeCacheKey(int GroupId, HexCoord Coord, double MovementLeft, int MapVersion);
     private RangeCacheKey? _rangeCacheKey;
     private Dictionary<HexCoord, double> _cachedRange = [];
 
@@ -94,6 +100,7 @@ public partial class MainGame : Node2D
         _settingsPath = ProjectSettings.GlobalizePath("user://settings.json");
         _settings = PresentationSettings.Load(_settingsPath);
         _gridVisible = _settings.GridVisible;
+        _resourceIconsVisible = _settings.ResourceIconsVisible;
         ApplyAudioSettings();
 
         _camera = new Camera2D { Enabled = true, Position = new Vector2(470, 340), Zoom = new Vector2(DefaultCameraZoom, DefaultCameraZoom) };
@@ -106,8 +113,7 @@ public partial class MainGame : Node2D
 
     private void ClearSelection()
     {
-        _selectedStackId = null;
-        _selectedAgentId = null;
+        _selectedGroupId = null;
         _selectedRange = [];
         UpdateSelectionHighlights();
     }

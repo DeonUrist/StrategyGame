@@ -99,7 +99,6 @@ public enum BaseBiome
     ConiferForest,
     BroadleafForest,
     Swamp,
-    Prairie,
     Jungle
 }
 

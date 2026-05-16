@@ -13,8 +13,7 @@ public static class VisibilityRules
 
         var playerId = state.PlayerFaction.Id;
         return state.Cities.Values.Any(city => city.FactionId == playerId && city.Coord.DistanceTo(coord) <= VisionRange)
-               || state.Stacks.Values.Any(stack => stack.FactionId == playerId && stack.Coord.DistanceTo(coord) <= VisionRange)
-               || state.Agents.Values.Any(agent => agent.FactionId == playerId && agent.JoinedStackId is null && agent.Coord.DistanceTo(coord) <= VisionRange);
+               || state.Groups.Values.Any(group => group.FactionId == playerId && group.StationedCityId is null && group.Coord.DistanceTo(coord) <= VisionRange);
     }
 
     public static bool IsMoveVisibleToPlayer(GameState state, HexCoord origin, HexCoord destination)

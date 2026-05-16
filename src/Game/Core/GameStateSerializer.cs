@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 15;
+    private const int CurrentVersion = 17;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -55,7 +55,7 @@ public static class GameStateSerializer
         var map = new HexMap();
         foreach (var tile in snapshot.Tiles.OrderBy(t => t.Q).ThenBy(t => t.R))
         {
-            // Tile StackIds and AgentIds are restored from the save so the map can
+            // Tile GroupIds are restored from the save so the map can
             // answer "what is on this hex?" immediately after loading.
             var loadedTile = new HexTile
             {
@@ -69,8 +69,7 @@ public static class GameStateSerializer
             };
 
             loadedTile.FeatureIds.AddRange(tile.FeatureIds);
-            loadedTile.StackIds.AddRange(tile.StackIds);
-            loadedTile.AgentIds.AddRange(tile.AgentIds);
+            loadedTile.GroupIds.AddRange(tile.GroupIds);
             map.Add(loadedTile);
         }
 
@@ -86,7 +85,7 @@ public static class GameStateSerializer
 
         foreach (var faction in snapshot.Factions)
         {
-            // Factions are restored before pieces because stacks, agents, and
+            // Factions are restored before pieces because groups and
             // cities refer to faction ids for ownership and coloring.
             state.Factions.Add(new FactionState
             {
@@ -118,41 +117,26 @@ public static class GameStateSerializer
             state.Regions[loadedRegion.Id] = loadedRegion;
         }
 
-        foreach (var stack in snapshot.Stacks)
+        foreach (var group in snapshot.Groups)
         {
-            // Stack unit rows are nested under the stack snapshot. The stack's
-            // position is restored here; tile.StackIds were restored earlier.
-            var loadedStack = new StackState
+            // Group unit rows are nested under the group snapshot. The group's
+            // position is restored here; tile.GroupIds were restored earlier.
+            var loadedGroup = new GroupState
             {
-                Id = stack.Id,
-                FactionId = stack.FactionId,
-                Coord = new HexCoord(stack.Q, stack.R),
-                MovementLeft = stack.MovementLeft
+                Id = group.Id,
+                Name = group.Name,
+                FactionId = group.FactionId,
+                Coord = new HexCoord(group.Q, group.R),
+                MovementLeft = group.MovementLeft,
+                StationedCityId = group.StationedCityId
             };
-            loadedStack.JoinedAgentIds.AddRange(stack.JoinedAgentIds);
 
-            foreach (var unit in stack.Units)
+            foreach (var unit in group.Units)
             {
-                loadedStack.Units.Add(new UnitInstance { TypeId = unit.TypeId });
+                loadedGroup.Units.Add(new UnitInstance { Id = unit.Id, TypeId = unit.TypeId, Name = unit.Name });
             }
 
-            state.Stacks[loadedStack.Id] = loadedStack;
-        }
-
-        foreach (var agent in snapshot.Agents)
-        {
-            // JoinedStackId restores the leader relationship. If it is set, the
-            // agent should not also be present as a loose map piece in AgentIds.
-            state.Agents[agent.Id] = new AgentState
-            {
-                Id = agent.Id,
-                FactionId = agent.FactionId,
-                TypeId = agent.TypeId,
-                Name = agent.Name,
-                Coord = new HexCoord(agent.Q, agent.R),
-                MovementLeft = agent.MovementLeft,
-                JoinedStackId = agent.JoinedStackId
-            };
+            state.Groups[loadedGroup.Id] = loadedGroup;
         }
 
         foreach (var city in snapshot.Cities)
@@ -165,6 +149,7 @@ public static class GameStateSerializer
                 Coord = new HexCoord(city.Q, city.R),
                 TownCenterLevel = city.TownCenterLevel
             };
+            loadedCity.StationedGroupIds.AddRange(city.StationedGroupIds);
             state.Cities[loadedCity.Id] = loadedCity;
         }
 
@@ -214,31 +199,19 @@ public static class GameStateSerializer
                     t.FeatureIds.ToList(),
                     t.ResourceId,
                     t.CityId,
-                    t.StackIds.ToList(),
-                    t.AgentIds.ToList()))
+                    t.GroupIds.ToList()))
                 .ToList(),
-            Stacks = state.Stacks.Values
-                .OrderBy(s => s.Id)
-                .Select(s => new StackSnapshot(
-                    s.Id,
-                    s.FactionId,
-                    s.Coord.Q,
-                    s.Coord.R,
-                    s.MovementLeft,
-                    s.JoinedAgentIds.ToList(),
-                    s.Units.Select(u => new UnitSnapshot(u.TypeId)).ToList()))
-                .ToList(),
-            Agents = state.Agents.Values
-                .OrderBy(a => a.Id)
-                .Select(a => new AgentSnapshot(
-                    a.Id,
-                    a.FactionId,
-                    a.TypeId,
-                    a.Name,
-                    a.Coord.Q,
-                    a.Coord.R,
-                    a.MovementLeft,
-                    a.JoinedStackId))
+            Groups = state.Groups.Values
+                .OrderBy(g => g.Id)
+                .Select(g => new GroupSnapshot(
+                    g.Id,
+                    g.Name,
+                    g.FactionId,
+                    g.Coord.Q,
+                    g.Coord.R,
+                    g.MovementLeft,
+                    g.StationedCityId,
+                    g.Units.Select(u => new UnitSnapshot(u.Id, u.TypeId, u.Name)).ToList()))
                 .ToList(),
             Cities = state.Cities.Values
                 .OrderBy(c => c.Id)
@@ -248,7 +221,8 @@ public static class GameStateSerializer
                     c.FactionId,
                     c.Coord.Q,
                     c.Coord.R,
-                    c.TownCenterLevel))
+                    c.TownCenterLevel,
+                    c.StationedGroupIds.ToList()))
                 .ToList(),
             Log = state.Log
                 .Select(e => new LogSnapshot(e.Turn, e.Text))
@@ -268,15 +242,14 @@ public static class GameStateSerializer
         public List<FactionSnapshot> Factions { get; set; } = [];
         public List<RegionSnapshot> Regions { get; set; } = [];
         public List<TileSnapshot> Tiles { get; set; } = [];
-        public List<StackSnapshot> Stacks { get; set; } = [];
-        public List<AgentSnapshot> Agents { get; set; } = [];
+        public List<GroupSnapshot> Groups { get; set; } = [];
         public List<CitySnapshot> Cities { get; set; } = [];
         public List<LogSnapshot> Log { get; set; } = [];
     }
 
     private sealed record FactionSnapshot(string Id, string Type, string Name, string Color, string Description, bool IsPlayer);
     private sealed record CoordSnapshot(int Q, int R);
-    private sealed record WorldGenerationSnapshot(int MapSize, int Civilizations, int Wetness, int GrasslandShrublandBias, int DesertBadlandsBias, int ConiferBroadleafForestBias, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias)
+    private sealed record WorldGenerationSnapshot(int MapSize, int Civilizations, int Wetness, int GrasslandShrublandBias, int DesertBadlandsBias, int ConiferBroadleafForestBias, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias, List<string> AllowedFactionIds)
     {
         public static WorldGenerationSnapshot FromState(WorldGenerationSettings settings)
         {
@@ -291,7 +264,8 @@ public static class GameStateSerializer
                 settings.ConiferBroadleafForestBias,
                 settings.ElevationVariance,
                 settings.MaxSeaNumber,
-                settings.ClimateBias);
+                settings.ClimateBias,
+                settings.AllowedFactionIds.ToList());
         }
 
         public WorldGenerationSettings ToState()
@@ -308,15 +282,15 @@ public static class GameStateSerializer
                 ConiferBroadleafForestBias = ConiferBroadleafForestBias,
                 ElevationVariance = ElevationVariance,
                 MaxSeaNumber = MaxSeaNumber,
-                ClimateBias = ClimateBias
+                ClimateBias = ClimateBias,
+                AllowedFactionIds = AllowedFactionIds.ToList()
             };
         }
     }
     private sealed record RegionSnapshot(int Id, string Name, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, TemperatureBand Temperature, BaseBiome BaseBiome, string FinalBiomeName);
-    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> StackIds, List<int> AgentIds);
-    private sealed record StackSnapshot(int Id, string FactionId, int Q, int R, double MovementLeft, List<int> JoinedAgentIds, List<UnitSnapshot> Units);
-    private sealed record UnitSnapshot(string TypeId);
-    private sealed record AgentSnapshot(int Id, string FactionId, string TypeId, string Name, int Q, int R, double MovementLeft, int? JoinedStackId);
-    private sealed record CitySnapshot(int Id, string Name, string FactionId, int Q, int R, int TownCenterLevel);
+    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> GroupIds);
+    private sealed record GroupSnapshot(int Id, string Name, string FactionId, int Q, int R, double MovementLeft, int? StationedCityId, List<UnitSnapshot> Units);
+    private sealed record UnitSnapshot(int Id, string TypeId, string? Name);
+    private sealed record CitySnapshot(int Id, string Name, string FactionId, int Q, int R, int TownCenterLevel, List<int> StationedGroupIds);
     private sealed record LogSnapshot(int Turn, string Text);
 }

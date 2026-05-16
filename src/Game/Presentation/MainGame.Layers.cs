@@ -8,26 +8,35 @@ public partial class MainGame
     private const string BackgroundTexturePath = "res://assets/image/background.png";
 
     private Node2D _backgroundRoot = null!;
+    private Node2D _terrainBaseRoot = null!;
+    private Node2D _gridRoot = null!;
+    private Node2D _selectionBorderRoot = null!;
     private Node2D _terrainRoot = null!;
     private Node2D _featuresRoot = null!;
     private Node2D _resourcesRoot = null!;
+    private Node2D _selectionRoot = null!;
     private Node2D _locationsRoot = null!;
     private Node2D _unitsRoot = null!;
 
     private readonly Dictionary<HexCoord, TileView> _tileViews = [];
-    private readonly Dictionary<int, Node2D> _stackViews = [];
-    private readonly Dictionary<int, Node2D> _agentViews = [];
+    private readonly Dictionary<HexCoord, Polygon2D> _selectionViews = [];
+    private readonly Dictionary<int, Node2D> _groupViews = [];
     private readonly Dictionary<string, Texture2D> _textureCache = [];
     private int? _renderedMapVersion;
 
     private void InitDrawLayers()
     {
         _backgroundRoot = GetNodeOrCreateLayer("Background", 0);
-        _terrainRoot = GetNodeOrCreateLayer("Terrain");
-        _featuresRoot = GetNodeOrCreateLayer("Features");
-        _resourcesRoot = GetNodeOrCreateLayer("Resources");
-        _locationsRoot = GetNodeOrCreateLayer("Locations");
-        _unitsRoot = GetNodeOrCreateLayer("Units");
+        _terrainBaseRoot = GetNodeOrCreateLayer("TerrainBase", 1);
+        _gridRoot = GetNodeOrCreateLayer("Grid", 2);
+        _selectionBorderRoot = GetNodeOrCreateLayer("SelectionBorder", 3);
+        _terrainRoot = GetNodeOrCreateLayer("Terrain", 4);
+        _featuresRoot = GetNodeOrCreateLayer("Features", 5);
+        _resourcesRoot = GetNodeOrCreateLayer("Resources", 6);
+        _resourcesRoot.Visible = _resourceIconsVisible;
+        _selectionRoot = GetNodeOrCreateLayer("Selection", 7);
+        _locationsRoot = GetNodeOrCreateLayer("Locations", 8);
+        _unitsRoot = GetNodeOrCreateLayer("Units", 9);
         SyncBackgroundObject();
     }
 
@@ -36,15 +45,19 @@ public partial class MainGame
         _mapInputLocked = false;
         if (_state is null)
         {
+            ClearLayer(_terrainBaseRoot);
+            ClearLayer(_gridRoot);
+            ClearLayer(_selectionBorderRoot);
             ClearLayer(_terrainRoot);
             ClearLayer(_featuresRoot);
             ClearLayer(_resourcesRoot);
+            ClearLayer(_selectionRoot);
             ClearLayer(_locationsRoot);
             ClearLayer(_unitsRoot);
             SyncBackgroundObject();
             _tileViews.Clear();
-            _stackViews.Clear();
-            _agentViews.Clear();
+            _selectionViews.Clear();
+            _groupViews.Clear();
             _renderedMapVersion = null;
             return;
         }
@@ -133,26 +146,52 @@ public partial class MainGame
             return;
         }
 
+        ClearLayer(_terrainBaseRoot);
+        ClearLayer(_gridRoot);
+        ClearLayer(_selectionBorderRoot);
         ClearLayer(_terrainRoot);
+        ClearLayer(_selectionRoot);
         _tileViews.Clear();
+        _selectionViews.Clear();
 
         foreach (var tile in state.Map.Tiles.OrderBy(t => t.Coord.R).ThenBy(t => t.Coord.Q))
         {
+            var tilePosition = HexToPixel(tile.Coord);
+            _terrainBaseRoot.AddChild(CreateTerrainTileSprite(
+                $"TerrainBase_{tile.Coord.Q}_{tile.Coord.R}",
+                TerrainBaseSpritePath(state, tile),
+                tilePosition));
+
             var view = new TileView
             {
-                Name = $"Tile_{tile.Coord.Q}_{tile.Coord.R}",
+                Name = $"Grid_{tile.Coord.Q}_{tile.Coord.R}",
                 Coord = tile.Coord,
-                Position = HexToPixel(tile.Coord)
+                Position = tilePosition
             };
             view.Setup(
-                LoadTexture(TerrainSpritePath(state, tile)),
                 TileTextureHexCornerOffsets,
                 _gridVisible,
                 coord => HandleHexLeftClick(coord),
                 coord => HandleHexRightClick(coord),
                 () => _mapInputLocked);
-            _terrainRoot.AddChild(view);
+            _gridRoot.AddChild(view);
             _tileViews[tile.Coord] = view;
+
+            _terrainRoot.AddChild(CreateTerrainTileSprite(
+                $"Terrain_{tile.Coord.Q}_{tile.Coord.R}",
+                TerrainSpritePath(state, tile),
+                tilePosition));
+
+            var highlight = new Polygon2D
+            {
+                Name = $"Selection_{tile.Coord.Q}_{tile.Coord.R}",
+                Position = tilePosition,
+                Polygon = TileTextureHexCornerOffsets,
+                Color = new Color(1f, 1f, 1f, 0.25f),
+                Visible = false
+            };
+            _selectionRoot.AddChild(highlight);
+            _selectionViews[tile.Coord] = highlight;
         }
 
         _renderedMapVersion = state.MapVersion;
@@ -179,11 +218,10 @@ public partial class MainGame
         ClearLayer(_featuresRoot);
         foreach (var tile in state.Map.Tiles.Where(t => t.FeatureIds.Contains("volcano", StringComparer.OrdinalIgnoreCase)))
         {
-            _featuresRoot.AddChild(CreateMapSprite(
+            _featuresRoot.AddChild(CreateTileAlignedSprite(
                 $"Feature_volcano_{tile.Coord.Q}_{tile.Coord.R}",
                 "res://assets/image/features/volcano.png",
-                HexContentToPixel(tile.Coord) + new Vector2(0, -10),
-                0.78f));
+                HexToPixel(tile.Coord)));
         }
     }
 
@@ -276,57 +314,35 @@ public partial class MainGame
         return panel;
     }
 
-    private void SyncUnitObjects(int? movingStackId = null, int? movingAgentId = null)
+    private void SyncUnitObjects(int? movingGroupId = null)
     {
         if (_state is not { } state)
         {
             return;
         }
 
-        var expectedStacks = new HashSet<int>(state.Stacks.Keys);
-        foreach (var staleId in _stackViews.Keys.Where(id => !expectedStacks.Contains(id)).ToList())
+        var deployedGroups = state.Groups.Values.Where(g => g.StationedCityId is null).Select(g => g.Id).ToHashSet();
+        foreach (var staleId in _groupViews.Keys.Where(id => !deployedGroups.Contains(id)).ToList())
         {
-            _stackViews[staleId].QueueFree();
-            _stackViews.Remove(staleId);
-        }
-
-        var looseAgentIds = state.Agents.Values.Where(a => a.JoinedStackId is null).Select(a => a.Id).ToHashSet();
-        foreach (var staleId in _agentViews.Keys.Where(id => !looseAgentIds.Contains(id)).ToList())
-        {
-            _agentViews[staleId].QueueFree();
-            _agentViews.Remove(staleId);
+            _groupViews[staleId].QueueFree();
+            _groupViews.Remove(staleId);
         }
 
         foreach (var tile in state.Map.Tiles)
         {
-            var stacks = tile.StackIds
-                .Where(state.Stacks.ContainsKey)
-                .Select(id => state.Stacks[id])
-                .OrderBy(s => s.Id)
+            var groups = tile.GroupIds
+                .Where(state.Groups.ContainsKey)
+                .Select(id => state.Groups[id])
+                .Where(g => g.StationedCityId is null)
+                .OrderBy(g => g.Id)
                 .ToList();
-            for (var i = 0; i < stacks.Count; i++)
+            for (var i = 0; i < groups.Count; i++)
             {
-                var stack = stacks[i];
-                var view = GetOrCreateUnitView(_stackViews, stack.Id, $"Stack_{stack.Id}", StackSpritePath(stack));
-                if (movingStackId != stack.Id)
+                var group = groups[i];
+                var view = GetOrCreateUnitView(_groupViews, group.Id, $"Group_{group.Id}", GroupSpritePath(state, group));
+                if (movingGroupId != group.Id)
                 {
-                    view.Position = HexToPixel(stack.Coord) + PieceOffset(i, stacks.Count);
-                }
-            }
-
-            var agents = tile.AgentIds
-                .Where(state.Agents.ContainsKey)
-                .Select(id => state.Agents[id])
-                .Where(a => a.JoinedStackId is null)
-                .OrderBy(a => a.Id)
-                .ToList();
-            for (var i = 0; i < agents.Count; i++)
-            {
-                var agent = agents[i];
-                var view = GetOrCreateUnitView(_agentViews, agent.Id, $"Agent_{agent.Id}", AgentSpritePath(state, agent));
-                if (movingAgentId != agent.Id)
-                {
-                    view.Position = HexToPixel(agent.Coord) + PieceOffset(i, agents.Count);
+                    view.Position = HexToPixel(group.Coord) + PieceOffset(i, groups.Count);
                 }
             }
         }
@@ -336,6 +352,11 @@ public partial class MainGame
     {
         if (views.TryGetValue(id, out var existing))
         {
+            if (existing is Sprite2D sprite)
+            {
+                sprite.Texture = LoadTexture(path);
+            }
+
             return existing;
         }
 
@@ -351,8 +372,7 @@ public partial class MainGame
         {
             Name = nodeName,
             Texture = LoadTexture(texturePath),
-            Position = position,
-            ZAsRelative = false
+            Position = position
         };
         ApplySpriteScale(sprite, targetScale);
         return sprite;
@@ -364,10 +384,16 @@ public partial class MainGame
         {
             Name = nodeName,
             Texture = LoadTexture(texturePath),
-            Position = position,
-            ZAsRelative = false
+            Position = position
         };
         ApplyTileSpriteScale(sprite);
+        return sprite;
+    }
+
+    private Sprite2D CreateTerrainTileSprite(string nodeName, string texturePath, Vector2 position)
+    {
+        var sprite = CreateTileAlignedSprite(nodeName, texturePath, position);
+        sprite.TextureFilter = CanvasItem.TextureFilterEnum.Nearest;
         return sprite;
     }
 
@@ -423,14 +449,16 @@ public partial class MainGame
 
     private void UpdateSelectionHighlights()
     {
-        if (_tileViews.Count == 0)
+        SyncSelectionBorderObjects();
+
+        if (_selectionViews.Count == 0)
         {
             return;
         }
 
-        foreach (var (coord, view) in _tileViews)
+        foreach (var (coord, view) in _selectionViews)
         {
-            view.SetHighlighted(_selectedRange.ContainsKey(coord));
+            view.Visible = _selectedRange.ContainsKey(coord);
         }
     }
 
@@ -440,6 +468,68 @@ public partial class MainGame
         {
             view.SetGridVisible(visible);
         }
+    }
+
+    private void SetResourceIconsVisible(bool visible)
+    {
+        if (_resourcesRoot is not null)
+        {
+            _resourcesRoot.Visible = visible;
+        }
+    }
+
+    private void SyncSelectionBorderObjects()
+    {
+        ClearLayer(_selectionBorderRoot);
+
+        if (_state is not { } state || _selectedRegionId is not { } selectedRegionId)
+        {
+            return;
+        }
+
+        foreach (var tile in state.Map.Tiles
+                     .Where(t => t.RegionId == selectedRegionId)
+                     .OrderBy(t => t.Coord.R)
+                     .ThenBy(t => t.Coord.Q))
+        {
+            var coord = tile.Coord;
+            var center = HexToPixel(coord);
+            for (var directionIndex = 0; directionIndex < HexCoord.Directions.Length; directionIndex++)
+            {
+                var direction = HexCoord.Directions[directionIndex];
+                var neighbor = new HexCoord(coord.Q + direction.Q, coord.R + direction.R);
+                if (state.Map.TryGet(neighbor, out var neighborTile) && neighborTile.RegionId == selectedRegionId)
+                {
+                    continue;
+                }
+
+                var (startIndex, endIndex) = SelectionBorderEdgeCornerIndexes(directionIndex);
+                _selectionBorderRoot.AddChild(new Line2D
+                {
+                    Name = $"SelectionBorder_{coord.Q}_{coord.R}_{directionIndex}",
+                    Points =
+                    [
+                        center + TileTextureHexCornerOffsets[startIndex],
+                        center + TileTextureHexCornerOffsets[endIndex]
+                    ],
+                    Width = 2.0f,
+                    DefaultColor = Colors.White
+                });
+            }
+        }
+    }
+
+    private static (int Start, int End) SelectionBorderEdgeCornerIndexes(int directionIndex)
+    {
+        return directionIndex switch
+        {
+            0 => (2, 3),
+            1 => (1, 2),
+            2 => (0, 1),
+            3 => (5, 0),
+            4 => (4, 5),
+            _ => (3, 4)
+        };
     }
 
     private static Vector2 PieceOffset(int index, int count)
@@ -452,6 +542,38 @@ public partial class MainGame
         var key = TerrainSpriteKey(state, tile);
         var path = $"res://assets/image/terrain/{key}.png";
         return ResourceLoader.Exists(path) ? path : "res://assets/image/terrain/tile.png";
+    }
+
+    private static string TerrainBaseSpritePath(GameState state, HexTile tile)
+    {
+        var key = TerrainBaseSpriteKey(state, tile);
+        var path = $"res://assets/image/terrain/{key}_base.png";
+        return ResourceLoader.Exists(path) ? path : "res://assets/image/terrain/tile.png";
+    }
+
+    private static string TerrainBaseSpriteKey(GameState state, HexTile tile)
+    {
+        if (tile.Elevation == Elevation.Coast)
+        {
+            return "coast";
+        }
+
+        if (tile.Elevation == Elevation.DeepIce)
+        {
+            return "ocean_ice_sheet";
+        }
+
+        if (tile.Elevation == Elevation.Ocean)
+        {
+            return tile.WaterBodyKind switch
+            {
+                WaterBodyKind.Lake => "lake",
+                WaterBodyKind.Sea => "sea",
+                _ => "ocean"
+            };
+        }
+
+        return TerrainAssetKey(TerrainResolver.Resolve(state, tile).Name);
     }
 
     private static string TerrainSpriteKey(GameState state, HexTile tile)
@@ -498,15 +620,15 @@ public partial class MainGame
         return ResourceLoader.Exists(factionPath) ? factionPath : $"res://assets/image/locations/{key}.png";
     }
 
-    private static string StackSpritePath(StackState stack)
+    private static string GroupSpritePath(GameState state, GroupState group)
     {
-        return $"res://assets/image/units/army_{FactionSpriteSuffix(stack.FactionId)}.png";
-    }
+        if (GameRules.IsSingleAgentGroup(state, group))
+        {
+            var key = NormalizeAssetKey(state.Database.Units[group.Units[0].TypeId].Sprite);
+            return $"res://assets/image/units/{key}.png";
+        }
 
-    private static string AgentSpritePath(GameState state, AgentState agent)
-    {
-        var key = NormalizeAssetKey(state.Database.Units[agent.TypeId].Sprite);
-        return $"res://assets/image/units/{key}.png";
+        return $"res://assets/image/units/army_{FactionSpriteSuffix(group.FactionId)}.png";
     }
 
     private static string FactionSpriteSuffix(string factionId)
@@ -532,66 +654,29 @@ public partial class MainGame
 internal sealed partial class TileView : Area2D
 {
     private Line2D _border = null!;
-    private Polygon2D _highlight = null!;
     private Action<HexCoord>? _leftClick;
     private Action<HexCoord>? _rightClick;
     private Func<bool>? _inputLocked;
 
     public HexCoord Coord { get; set; }
 
-    public void Setup(Texture2D texture, Vector2[] corners, bool gridVisible, Action<HexCoord> leftClick, Action<HexCoord> rightClick, Func<bool> inputLocked)
+    public void Setup(Vector2[] corners, bool gridVisible, Action<HexCoord> leftClick, Action<HexCoord> rightClick, Func<bool> inputLocked)
     {
         _leftClick = leftClick;
         _rightClick = rightClick;
         _inputLocked = inputLocked;
         InputPickable = true;
 
-        var sprite = new Sprite2D
-        {
-            Texture = texture,
-            TextureFilter = TextureFilterEnum.Nearest,
-            ZIndex = 0
-        };
-        if (texture is not null)
-        {
-            var size = texture.GetSize();
-            var longest = MathF.Max(size.X, size.Y);
-            if (longest > 0)
-            {
-                var scale = MainGame.TileTextureWidth / longest;
-                sprite.Scale = new Vector2(scale, scale);
-            }
-        }
-        AddChild(sprite);
-
         _border = new Line2D
         {
             Points = corners.Concat([corners[0]]).ToArray(),
             Width = 1.0f,
             DefaultColor = new Color(0, 0, 0, 0.32f),
-            ZIndex = 1,
             Visible = gridVisible
         };
         AddChild(_border);
 
-        _highlight = new Polygon2D
-        {
-            Polygon = corners,
-            Color = new Color(1f, 1f, 1f, 0.25f),
-            Visible = false,
-            ZIndex = 2
-        };
-        AddChild(_highlight);
-
         AddChild(new CollisionPolygon2D { Polygon = corners });
-    }
-
-    public void SetHighlighted(bool highlighted)
-    {
-        if (_highlight is not null)
-        {
-            _highlight.Visible = highlighted;
-        }
     }
 
     public void SetGridVisible(bool visible)

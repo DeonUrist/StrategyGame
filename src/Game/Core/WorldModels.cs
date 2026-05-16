@@ -1,8 +1,8 @@
 namespace StrategyGame.Core;
 
 // A map tile stores generated world properties plus lightweight indexes for
-// pieces currently on the tile. The indexes duplicate each piece's Coord, but
-// make drawing and click lookup direct instead of scanning every stack/agent.
+// groups currently on the tile. The indexes duplicate each group's Coord, but
+// make drawing and click lookup direct instead of scanning every group.
 public sealed class HexTile
 {
     public required HexCoord Coord { get; init; }
@@ -13,8 +13,7 @@ public sealed class HexTile
     public List<string> FeatureIds { get; } = [];
     public string? ResourceId { get; set; }
     public int? CityId { get; set; }
-    public List<int> StackIds { get; } = [];
-    public List<int> AgentIds { get; } = [];
+    public List<int> GroupIds { get; } = [];
 }
 
 // RegionState is the source of truth for land biome identity. Every land tile
@@ -110,36 +109,28 @@ public sealed class FactionState
     public required bool IsPlayer { get; init; }
 }
 
-// UnitInstance is one unit in an army stack. Repeated entries represent multiple
-// units of the same type; authored stats are looked up by TypeId.
+// UnitInstance is one unit in a group. Repeated entries represent multiple units
+// of the same type; authored stats are looked up by TypeId. Id preserves a
+// specific unit's identity when groups are merged and split.
 public sealed class UnitInstance
 {
+    public int Id { get; init; }
     public required string TypeId { get; init; }
+    public string? Name { get; init; }
 }
 
-// StackState is an army on the map. A stack can contain several unit rows and
-// may have one or more joined AgentState leaders/scouts attached to it.
-public sealed class StackState
+// GroupState is any movable set of units. A lone agent is a one-unit group with
+// an agent-role UnitInstance; larger groups may also contain agent units after
+// merging. Stationed groups live in a city garrison instead of on the map.
+public sealed class GroupState
 {
     public int Id { get; init; }
+    public string Name { get; set; } = "";
     public required string FactionId { get; init; }
     public required HexCoord Coord { get; set; }
     public List<UnitInstance> Units { get; } = [];
     public double MovementLeft { get; set; }
-    public List<int> JoinedAgentIds { get; } = [];
-}
-
-// AgentState represents a hero/scout-style piece. Agents can move independently
-// while JoinedStackId is null, or attach to a friendly stack as its leader.
-public sealed class AgentState
-{
-    public int Id { get; init; }
-    public required string FactionId { get; init; }
-    public required string TypeId { get; init; }
-    public required string Name { get; init; }
-    public HexCoord Coord { get; set; }
-    public double MovementLeft { get; set; }
-    public int? JoinedStackId { get; set; }
+    public int? StationedCityId { get; set; }
 }
 
 // CityState is the prototype settlement model. TownCenterLevel is the single
@@ -151,6 +142,7 @@ public sealed class CityState
     public required string FactionId { get; set; }
     public required HexCoord Coord { get; init; }
     public int TownCenterLevel { get; set; }
+    public List<int> StationedGroupIds { get; } = [];
 }
 
 // GameLogEntry is intentionally tiny: all systems write human-readable text
@@ -182,4 +174,5 @@ public sealed class WorldGenerationSettings
     public int ElevationVariance { get; init; } = 50;
     public int MaxSeaNumber { get; init; } = 2;
     public ClimateBias ClimateBias { get; init; } = ClimateBias.Normal;
+    public List<string> AllowedFactionIds { get; init; } = [];
 }

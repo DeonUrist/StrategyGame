@@ -15,19 +15,18 @@ Core files live in `src/Game/Core`. They do not use Godot APIs, so they are easi
 - `Definitions.cs`: shared game data shapes and terrain enums.
 - `GameDatabase.cs`: loads unit, building, faction, and event catalogs from `data/`, and defines resources in code.
 - `GameState.cs`: top-level runtime state, faction helpers, and game log helper.
-- `WorldModels.cs`: runtime game objects such as tiles, saved biome regions, worldgen settings, armies, agents, cities, factions, and log entries.
+- `WorldModels.cs`: runtime game objects such as tiles, saved biome regions, worldgen settings, unit groups, cities, factions, and log entries.
 - `HexCoord.cs`: axial hex coordinate math, neighbors, and distance.
 - `MapGenerator.cs`: top-level deterministic 32x32 sandbox generation flow and base tile creation.
 - `MapGenerator.Geometry.cs`: axial/row-column conversion, coastline shape, and map-edge helpers.
 - `MapGenerator.Regions.cs`: saved biome region creation, moisture assignment, north/south temperature bands, and explicit terrain-variant rolls.
 - `MapGenerator.TerrainFeatures.cs`: inland lakes, region-edge hill/mountain/peak generation, volcanoes, and resource placement.
-- `MapGenerator.StartingPieces.cs`: faction starting cities, army stacks, agents, and start-location fallback.
+- `MapGenerator.StartingPieces.cs`: faction starting cities, starting garrisons, and start-location fallback.
 - `TerrainResolver.cs`: public terrain resolution entry points for water and saved region biomes.
 - `TerrainResolver.Biomes.cs`: temperature/moisture terrain table and paired terrain variant selection.
 - `TerrainResolver.Stats.cs`: water terrain names, movement costs, and defense modifiers.
 - `GameRules.Movement.cs`: movement cost and pathfinding range.
-- `GameRules.Stacks.cs`: army stack movement and combat entry.
-- `GameRules.Agents.cs`: agent movement, joining armies, and detaching leaders.
+- `GameRules.Groups.cs`: group movement, unit transfers, merging, splitting, stationing, and deploy.
 - `GameRules.Cities.cs`: TownCenter settlement-level upgrades.
 - `GameRules.Turns.cs`: faction turn order and movement reset.
 - `CombatResolver.cs`: simple strategic autoresolve combat.
@@ -43,7 +42,7 @@ Presentation files live in `src/Game/Presentation`. They connect player input an
 - `MainGame.cs`: scene startup, database load, sandbox creation, shared state fields.
 - `MainGame.Input.cs`: mouse clicks, camera zoom, camera pan, selection, and move commands.
 - `MainGame.Ui.cs`: menu and HUD control construction.
-- `MainGame.Flow.cs`: screen switching, new/load/save game flow, end-turn handling, and leader detach command.
+- `MainGame.Flow.cs`: screen switching, new/load/save game flow, end-turn handling, and group action commands.
 - `MainGame.InfoPanel.cs`: selected-unit, tile, and log text formatting for the HUD.
 - `MainGame.Layers.cs`: sprite layer sync for terrain, features, resources, locations, units, grid, and selection highlights.
 - `MainGame.HexMath.cs`: convert between hex coordinates and Godot pixel positions.
@@ -61,4 +60,4 @@ There are no `terrain.json`, `resources.json`, or `features.json` catalogs in th
 
 ## Tests
 
-The test harness in `tests/StrategyGame.Tests` compiles the core game logic directly. It covers hex math, database loading, terrain resolution, deterministic map generation, region/elevation constraints, movement, agent attach/detach, city upgrades, combat, AI validity, save/load round trips, and deterministic loaded AI turns.
+The test harness in `tests/StrategyGame.Tests` compiles the core game logic directly. It covers hex math, database loading, terrain resolution, deterministic map generation, region/elevation constraints, movement, group split/transfer, garrison station/deploy, city upgrades, combat, AI validity, save/load round trips, and deterministic loaded AI turns.

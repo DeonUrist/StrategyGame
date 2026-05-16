@@ -86,7 +86,7 @@ public partial class MainGame
 
         var panel = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(470, 462)
+            CustomMinimumSize = new Vector2(520, 560)
         };
         ApplyPanelChrome(panel);
         center.AddChild(panel);
@@ -110,6 +110,14 @@ public partial class MainGame
         _maxSeaSlider = AddSlider(box, "Max sea number", 0, 5, 1, 2, out _maxSeaValueLabel, v => $"{(int)v}");
         _climateBiasSlider = AddSlider(box, "Climate bias", -1, 1, 1, 0, out _climateBiasValueLabel, FormatClimateBias);
 
+        box.AddChild(new HSeparator());
+        box.AddChild(new Label
+        {
+            Text = "Allowed races",
+            HorizontalAlignment = HorizontalAlignment.Center
+        });
+        AddRaceAllowedControls(box);
+
         var buttons = new HBoxContainer();
         box.AddChild(buttons);
 
@@ -124,6 +132,28 @@ public partial class MainGame
         buttons.AddChild(create);
 
         return root;
+    }
+
+    private void AddRaceAllowedControls(VBoxContainer parent)
+    {
+        _raceAllowedChecks.Clear();
+        var grid = new GridContainer { Columns = 3 };
+        parent.AddChild(grid);
+
+        foreach (var faction in _database.Factions.Values.OrderBy(faction => faction.Name))
+        {
+            var isUndead = faction.Id.Equals("undead", StringComparison.OrdinalIgnoreCase);
+            var check = new CheckBox
+            {
+                Text = faction.Name,
+                ButtonPressed = !isUndead
+            };
+            check.Toggled += _ => RefreshCivilizationLimit();
+            grid.AddChild(check);
+            _raceAllowedChecks[faction.Id] = check;
+        }
+
+        RefreshCivilizationLimit();
     }
 
     private static HSlider AddSlider(VBoxContainer parent, string caption, double min, double max, double step, double value, out Label valueLabel, Func<double, string> formatter)
@@ -200,15 +230,30 @@ public partial class MainGame
         var actionRow = new HBoxContainer();
         leftBox.AddChild(actionRow);
 
-        _attachToArmyButton = new Button { Text = "Attach to Army", Visible = false };
-        ApplyButtonChrome(_attachToArmyButton);
-        _attachToArmyButton.Pressed += AttachSelectedAgentToArmy;
-        actionRow.AddChild(_attachToArmyButton);
+        _stationGroupButton = new Button { Text = "Station", Visible = false };
+        ApplyButtonChrome(_stationGroupButton);
+        _stationGroupButton.Pressed += StationSelectedGroup;
+        actionRow.AddChild(_stationGroupButton);
 
-        _detachLeaderButton = new Button { Text = "Detach Leader", Visible = false };
-        ApplyButtonChrome(_detachLeaderButton);
-        _detachLeaderButton.Pressed += DetachSelectedLeader;
-        actionRow.AddChild(_detachLeaderButton);
+        _deployGroupButton = new Button { Text = "Deploy", Visible = false };
+        ApplyButtonChrome(_deployGroupButton);
+        _deployGroupButton.Pressed += DeployStationedGroup;
+        actionRow.AddChild(_deployGroupButton);
+
+        _transferUnitsButton = new Button { Text = "Transfer Units", Visible = false };
+        ApplyButtonChrome(_transferUnitsButton);
+        _transferUnitsButton.Pressed += TransferUnitsToSelectedGroup;
+        actionRow.AddChild(_transferUnitsButton);
+
+        _splitGroupButton = new Button { Text = "Split Group", Visible = false };
+        ApplyButtonChrome(_splitGroupButton);
+        _splitGroupButton.Pressed += SplitSelectedGroup;
+        actionRow.AddChild(_splitGroupButton);
+
+        _renameGroupButton = new Button { Text = "Rename", Visible = false };
+        ApplyButtonChrome(_renameGroupButton);
+        _renameGroupButton.Pressed += RenameSelectedGroup;
+        actionRow.AddChild(_renameGroupButton);
 
         _selectionInfoLabel = BuildInfoText();
         leftBox.AddChild(_selectionInfoLabel);
@@ -344,19 +389,24 @@ public partial class MainGame
                 SavePresentationSettings();
             };
 
-        var grid = new CheckBox
+        var displayRow = new HBoxContainer();
+        box.AddChild(displayRow);
+
+        _gridVisibleCheckBox = new CheckBox
         {
-            Text = "Grid",
+            Text = "Grid (G)",
             ButtonPressed = _settings.GridVisible
         };
-        grid.Toggled += enabled =>
+        _gridVisibleCheckBox.Toggled += enabled => SetGridVisibilityPreference(enabled);
+        displayRow.AddChild(_gridVisibleCheckBox);
+
+        _resourceIconsVisibleCheckBox = new CheckBox
         {
-            _settings.GridVisible = enabled;
-            _gridVisible = enabled;
-            SavePresentationSettings();
-            SetGridVisible(enabled);
+            Text = "Resources (R)",
+            ButtonPressed = _settings.ResourceIconsVisible
         };
-        box.AddChild(grid);
+        _resourceIconsVisibleCheckBox.Toggled += enabled => SetResourceIconsVisibilityPreference(enabled);
+        displayRow.AddChild(_resourceIconsVisibleCheckBox);
 
         var speedRow = new HBoxContainer();
         box.AddChild(speedRow);
@@ -492,7 +542,7 @@ public partial class MainGame
         var panel = new PanelContainer
         {
             Visible = false,
-            CustomMinimumSize = new Vector2(220, 120)
+            CustomMinimumSize = new Vector2(440, 180)
         };
         ApplyPanelChrome(panel);
         panel.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);

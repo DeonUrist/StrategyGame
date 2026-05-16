@@ -2,21 +2,21 @@ namespace StrategyGame.Core;
 
 public sealed partial class FactionDirector
 {
-    private HexCoord? ChooseStackTarget(GameState state, StackState stack, string actionId, Random random)
+    private HexCoord? ChooseGroupTarget(GameState state, GroupState group, string actionId, Random random)
     {
-        // Targets are selected from the stack's current movement range. The AI
+        // Targets are selected from the group's current movement range. The AI
         // never plans multi-turn paths yet; it chooses the best reachable hex
         // for this one turn.
-        var range = GameRules.MovementRange(state, stack.Coord, stack.MovementLeft);
+        var range = GameRules.MovementRange(state, group.Coord, group.MovementLeft);
 
         if (actionId is "attack_enemy" or "defend_city")
         {
-            // Both attack and defense currently move toward enemy stacks. This
+            // Both attack and defense currently move toward enemy groups. This
             // makes "defend city" a reactive military posture until stronger
             // garrison/zone rules exist.
-            var nearest = state.Stacks.Values
-                .Where(s => s.FactionId != stack.FactionId)
-                .OrderBy(s => s.Coord.DistanceTo(stack.Coord))
+            var nearest = state.Groups.Values
+                .Where(g => g.FactionId != group.FactionId && g.StationedCityId is null)
+                .OrderBy(g => g.Coord.DistanceTo(group.Coord))
                 .FirstOrDefault();
 
             if (nearest is not null)
@@ -30,18 +30,18 @@ public sealed partial class FactionDirector
             // exact target in similar positions.
             var resource = state.Map.Tiles
                 .Where(t => t.ResourceId is not null)
-                .OrderBy(t => t.Coord.DistanceTo(stack.Coord) + random.Next(0, 3))
+                .OrderBy(t => t.Coord.DistanceTo(group.Coord) + random.Next(0, 3))
                 .FirstOrDefault();
 
             return resource is null ? RandomReachable(range, random) : ClosestReachable(range, resource.Coord);
         }
 
         var ownedCity = state.Cities.Values
-            .Where(c => c.FactionId == stack.FactionId)
-            .OrderBy(c => c.Coord.DistanceTo(stack.Coord))
+            .Where(c => c.FactionId == group.FactionId)
+            .OrderBy(c => c.Coord.DistanceTo(group.Coord))
             .FirstOrDefault();
 
-        // Upgrade-focused stacks drift toward their own city; otherwise they
+        // Upgrade-focused groups drift toward their own city; otherwise they
         // wander within range to keep the board moving.
         return actionId == "upgrade_city" && ownedCity is not null
             ? ClosestReachable(range, ownedCity.Coord)

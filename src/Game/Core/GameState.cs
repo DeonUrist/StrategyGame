@@ -11,8 +11,7 @@ public sealed class GameState
     public WorldGenerationSettings WorldGeneration { get; set; } = new();
     public List<FactionState> Factions { get; } = [];
     public Dictionary<int, RegionState> Regions { get; } = [];
-    public Dictionary<int, StackState> Stacks { get; } = [];
-    public Dictionary<int, AgentState> Agents { get; } = [];
+    public Dictionary<int, GroupState> Groups { get; } = [];
     public Dictionary<int, CityState> Cities { get; } = [];
     public List<GameLogEntry> Log { get; } = [];
     public int CurrentFactionIndex { get; set; }
@@ -25,8 +24,7 @@ public sealed class GameState
     public FactionState PlayerFaction => Factions.First(f => f.IsPlayer);
 
     // These helpers keep rule code readable and centralize faction filtering.
-    public IEnumerable<StackState> StacksForFaction(string factionId) => Stacks.Values.Where(s => s.FactionId == factionId);
-    public IEnumerable<AgentState> AgentsForFaction(string factionId) => Agents.Values.Where(a => a.FactionId == factionId);
+    public IEnumerable<GroupState> GroupsForFaction(string factionId) => Groups.Values.Where(g => g.FactionId == factionId);
     public FactionState GetFaction(string id) => Factions.First(f => f.Id == id);
 
     // Logs are part of state so save/load preserves the player's recent history.
