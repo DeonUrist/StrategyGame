@@ -48,14 +48,6 @@ public sealed partial class FactionDirector
             : RandomReachable(range, random);
     }
 
-    private HexCoord? ChooseScoutTarget(GameState state, HexCoord origin, double movement, Random random)
-    {
-        // Scouts are intentionally simple: pick any reachable non-origin tile.
-        // Fog of war can later replace this with unknown-tile exploration.
-        var range = GameRules.MovementRange(state, origin, movement);
-        return RandomReachable(range, random);
-    }
-
     private static List<HexCoord> ReachableDestinations(Dictionary<HexCoord, double> range)
     {
         // Excludes the origin tile, which is always present with cost 0.

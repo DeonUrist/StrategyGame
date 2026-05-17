@@ -12,7 +12,7 @@ public sealed class GameState
     public List<FactionState> Factions { get; } = [];
     public Dictionary<int, RegionState> Regions { get; } = [];
     public Dictionary<int, GroupState> Groups { get; } = [];
-    public Dictionary<int, CityState> Cities { get; } = [];
+    public Dictionary<int, LocationState> Cities { get; } = [];
     public List<GameLogEntry> Log { get; } = [];
     public int CurrentFactionIndex { get; set; }
     public int Turn { get; set; } = 1;

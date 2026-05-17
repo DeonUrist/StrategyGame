@@ -34,6 +34,12 @@ public partial class MainGame
         var canDeploy = CanDeployFromInspectedCity(state, inspectedTile);
         _deployGroupButton.Visible = canDeploy;
         _deployGroupButton.Disabled = !canDeploy;
+        var canRelocate = CanRelocateFromInspectedLocation(state, inspectedTile);
+        _relocateCiviliansButton.Visible = canRelocate;
+        _relocateCiviliansButton.Disabled = !canRelocate;
+        var canSettle = CanSettleSelectedCivilians(state);
+        _settleCiviliansButton.Visible = canSettle;
+        _settleCiviliansButton.Disabled = !canSettle;
         var canTransfer = CanTransferUnitsToSelectedGroup(state);
         _transferUnitsButton.Visible = canTransfer;
         _transferUnitsButton.Disabled = !canTransfer;
@@ -64,9 +70,9 @@ public partial class MainGame
         var regionText = tile.RegionId is null
             ? "\nRegion: none"
             : RegionPanelText(state.Regions[tile.RegionId.Value]);
-        var cityText = tile.CityId is null
+        var cityText = tile.LocationId is null
             ? ""
-            : CityPanelText(state, state.Cities[tile.CityId.Value]);
+            : CityPanelText(state, state.Cities[tile.LocationId.Value]);
 
         return $"Tile {tile.Coord.Q}/{tile.Coord.R}"
              + $"\n{Escape(terrainLabel)}"
@@ -99,13 +105,9 @@ public partial class MainGame
             .GroupBy(unit => unit.TypeId)
             .Select(unitGroup =>
             {
-                var name = Escape(state.Database.Units[unitGroup.Key].Name);
+                var name = Escape(state.Database.Unit(group.FactionId, unitGroup.Key).Name);
                 return unitGroup.Count() == 1 ? name : $"{unitGroup.Count()} {name}";
             }));
-        var agentText = group.Units.Where(unit => GameRules.IsAgentUnit(state, unit) && unit.Name is not null).ToList();
-        var agentUnitText = agentText.Count == 0
-            ? ""
-            : $"\nAgents: {string.Join(", ", agentText.Select(unit => UnitLabel(state, unit)))}";
         var stationedText = group.StationedCityId is { } cityId && state.Cities.TryGetValue(cityId, out var city)
             ? $"\nStationed: {Escape(city.Name)}"
             : "";
@@ -114,17 +116,23 @@ public partial class MainGame
              + $"\nMoves: {FormatMoves(group.MovementLeft)}/{FormatMoves(GameRules.MaxGroupMovement(state, group))}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
              + $"\nUnits: {units} | strength: {CombatResolver.GroupStrength(state, group)}"
-             + agentUnitText
+             + $"\nCarry: {FormatQuantity(GameRules.GroupInventoryWeight(group))}/{FormatQuantity(GameRules.GroupCarryCapacity(state, group))}"
+             + GroupInventoryPanelText(group.Inventory)
              + stationedText;
     }
 
-    private string CityPanelText(GameState state, CityState city)
+    private string CityPanelText(GameState state, LocationState city)
     {
         var faction = _factionById[city.FactionId];
         var townCenter = SettlementProgression.CurrentTownCenter(state, city);
-        return $"\nSettlement: {Escape(SettlementProgression.DisplayName(state, city))}"
+        var title = city.Kind == LocationKind.Settlement
+            ? $"Settlement: {Escape(SettlementProgression.DisplayName(state, city))}"
+            : $"{city.Kind}: {Escape(city.Name)}";
+        return $"\n{title}"
              + $"\nFaction: {ColorText(faction.Name, faction.Color)}"
-             + $"\nTown Center: {ColorText(townCenter.Name, BuildingColor(townCenter.Level))}"
+             + $"\nPopulation: {city.Population}"
+             + (city.Kind == LocationKind.Settlement ? $"\nTown Center: {ColorText(townCenter.Name, BuildingColor(townCenter.Level))}" : "")
+             + LocationInventoryPanelText(city.Inventory)
              + GarrisonPanelText(state, city);
     }
 
@@ -162,12 +170,6 @@ public partial class MainGame
         return turn % 2 == 0 ? "#88c0ff" : "#f0c86a";
     }
 
-    private static string UnitLabel(GameState state, UnitInstance unit)
-    {
-        var role = state.Database.Units[unit.TypeId].Name.ToLowerInvariant();
-        return unit.Name is null ? Escape(role) : $"{Escape(unit.Name)} ({Escape(role)})";
-    }
-
     private static string BuildingColor(int level)
     {
         return level switch
@@ -182,7 +184,7 @@ public partial class MainGame
         };
     }
 
-    private string GarrisonPanelText(GameState state, CityState city)
+    private string GarrisonPanelText(GameState state, LocationState city)
     {
         if (GameRules.GetCityGarrison(state, city.Id) is not { } garrison || garrison.Units.Count == 0)
         {
@@ -193,7 +195,7 @@ public partial class MainGame
             .GroupBy(unit => unit.TypeId)
             .Select(unitGroup =>
             {
-                var name = Escape(state.Database.Units[unitGroup.Key].Name);
+                var name = Escape(state.Database.Unit(garrison.FactionId, unitGroup.Key).Name);
                 return unitGroup.Count() == 1 ? name : $"{unitGroup.Count()} {name}";
             }));
 
@@ -206,14 +208,17 @@ public partial class MainGame
                && state.Groups.TryGetValue(groupId, out var group)
                && group.FactionId == state.PlayerFaction.Id
                && group.StationedCityId is null
-               && state.Map.Get(group.Coord).CityId is { } cityId
+               && !GameRules.IsCivilianOnlyGroup(state, group)
+               && state.Map.Get(group.Coord).LocationId is { } cityId
+               && state.Cities[cityId].Kind == LocationKind.Settlement
                && state.Cities[cityId].FactionId == group.FactionId;
     }
 
     private bool CanDeployFromInspectedCity(GameState state, HexTile? tile)
     {
-        return tile?.CityId is { } cityId
+        return tile?.LocationId is { } cityId
                && state.Cities[cityId].FactionId == state.PlayerFaction.Id
+               && state.Cities[cityId].Kind == LocationKind.Settlement
                && GameRules.GetCityGarrison(state, cityId) is { Units.Count: > 0 };
     }
 
@@ -226,7 +231,9 @@ public partial class MainGame
                && state.Map.Get(group.Coord).GroupIds
                    .Where(id => id != group.Id)
                    .Select(id => state.Groups[id])
-                   .Any(other => other.FactionId == group.FactionId && other.StationedCityId is null);
+                   .Any(other => other.FactionId == group.FactionId
+                                 && other.StationedCityId is null
+                                 && GameRules.HaveCompatibleUnitCategory(state, group, other));
     }
 
     private bool CanSplitSelectedGroup(GameState state)
@@ -247,5 +254,53 @@ public partial class MainGame
     private static string FormatMoves(double movement)
     {
         return movement % 1 == 0 ? movement.ToString("0.0").Replace(".0", "") : movement.ToString("0.0");
+    }
+
+    private bool CanRelocateFromInspectedLocation(GameState state, HexTile? tile)
+    {
+        return tile?.LocationId is { } locationId
+               && state.Cities.TryGetValue(locationId, out var location)
+               && location.FactionId == state.PlayerFaction.Id
+               && location.Population > 0;
+    }
+
+    private bool CanSettleSelectedCivilians(GameState state)
+    {
+        return _selectedGroupId is { } groupId
+               && state.Groups.TryGetValue(groupId, out var group)
+               && group.FactionId == state.PlayerFaction.Id
+               && group.StationedCityId is null
+               && GameRules.IsCivilianOnlyGroup(state, group)
+               && state.Map.Get(group.Coord).LocationId is { } locationId
+               && state.Cities[locationId].FactionId == group.FactionId;
+    }
+
+    private static string LocationInventoryPanelText(Dictionary<ResourceCategory, double> inventory)
+    {
+        return inventory.Count == 0
+            ? "\nInventory: none"
+            : $"\nInventory: {string.Join(", ", inventory.OrderBy(kv => kv.Key).Select(kv => $"{ResourceCategoryLabel(kv.Key)} {FormatQuantity(kv.Value)}"))}";
+    }
+
+    private static string GroupInventoryPanelText(Dictionary<ResourceCategory, double> inventory)
+    {
+        return inventory.Count == 0
+            ? ""
+            : $"\nInventory: {string.Join(", ", inventory.OrderBy(kv => kv.Key).Select(kv => $"{ResourceCategoryLabel(kv.Key)} {FormatQuantity(kv.Value)}"))}";
+    }
+
+    private static string ResourceCategoryLabel(ResourceCategory category)
+    {
+        return category switch
+        {
+            ResourceCategory.CommonGoods => "Common Goods",
+            ResourceCategory.LuxuryGoods => "Luxury Goods",
+            _ => category.ToString()
+        };
+    }
+
+    private static string FormatQuantity(double quantity)
+    {
+        return quantity % 1 == 0 ? quantity.ToString("0") : quantity.ToString("0.0");
     }
 }

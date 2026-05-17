@@ -6,7 +6,7 @@ public static class GameStateSerializer
 {
     // Increment this when the save shape changes in a way older code cannot
     // safely read. The loader refuses unknown versions instead of guessing.
-    private const int CurrentVersion = 17;
+    private const int CurrentVersion = 19;
 
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
@@ -65,7 +65,7 @@ public static class GameStateSerializer
                 WaterBodyKind = tile.WaterBodyKind,
                 RegionId = tile.RegionId,
                 ResourceId = tile.ResourceId,
-                CityId = tile.CityId
+                LocationId = tile.LocationId
             };
 
             loadedTile.FeatureIds.AddRange(tile.FeatureIds);
@@ -92,6 +92,7 @@ public static class GameStateSerializer
                 Id = faction.Id,
                 Type = faction.Type,
                 Name = faction.Name,
+                RaceId = faction.RaceId,
                 Color = faction.Color,
                 Description = faction.Description,
                 IsPlayer = faction.IsPlayer
@@ -130,6 +131,10 @@ public static class GameStateSerializer
                 MovementLeft = group.MovementLeft,
                 StationedCityId = group.StationedCityId
             };
+            foreach (var item in group.Inventory)
+            {
+                loadedGroup.Inventory[item.Category] = item.Quantity;
+            }
 
             foreach (var unit in group.Units)
             {
@@ -141,14 +146,20 @@ public static class GameStateSerializer
 
         foreach (var city in snapshot.Cities)
         {
-            var loadedCity = new CityState
+            var loadedCity = new LocationState
             {
                 Id = city.Id,
+                Kind = city.Kind,
                 Name = city.Name,
                 FactionId = city.FactionId,
                 Coord = new HexCoord(city.Q, city.R),
-                TownCenterLevel = city.TownCenterLevel
+                TownCenterLevel = city.TownCenterLevel,
+                Population = city.Population
             };
+            foreach (var item in city.Inventory)
+            {
+                loadedCity.Inventory[item.Category] = item.Quantity;
+            }
             loadedCity.StationedGroupIds.AddRange(city.StationedGroupIds);
             state.Cities[loadedCity.Id] = loadedCity;
         }
@@ -173,7 +184,7 @@ public static class GameStateSerializer
             Turn = state.Turn,
             FogOfWarEnabled = state.FogOfWarEnabled,
             Factions = state.Factions
-                .Select(f => new FactionSnapshot(f.Id, f.Type, f.Name, f.Color, f.Description, f.IsPlayer))
+                .Select(f => new FactionSnapshot(f.Id, f.Type, f.Name, f.RaceId, f.Color, f.Description, f.IsPlayer))
                 .ToList(),
             Regions = state.Regions.Values
                 .OrderBy(r => r.Id)
@@ -198,7 +209,7 @@ public static class GameStateSerializer
                     t.RegionId,
                     t.FeatureIds.ToList(),
                     t.ResourceId,
-                    t.CityId,
+                    t.LocationId,
                     t.GroupIds.ToList()))
                 .ToList(),
             Groups = state.Groups.Values
@@ -211,17 +222,27 @@ public static class GameStateSerializer
                     g.Coord.R,
                     g.MovementLeft,
                     g.StationedCityId,
+                    g.Inventory
+                        .OrderBy(kv => kv.Key)
+                        .Select(kv => new InventorySnapshot(kv.Key, kv.Value))
+                        .ToList(),
                     g.Units.Select(u => new UnitSnapshot(u.Id, u.TypeId, u.Name)).ToList()))
                 .ToList(),
             Cities = state.Cities.Values
                 .OrderBy(c => c.Id)
                 .Select(c => new CitySnapshot(
                     c.Id,
+                    c.Kind,
                     c.Name,
                     c.FactionId,
                     c.Coord.Q,
                     c.Coord.R,
                     c.TownCenterLevel,
+                    c.Population,
+                    c.Inventory
+                        .OrderBy(kv => kv.Key)
+                        .Select(kv => new InventorySnapshot(kv.Key, kv.Value))
+                        .ToList(),
                     c.StationedGroupIds.ToList()))
                 .ToList(),
             Log = state.Log
@@ -247,7 +268,7 @@ public static class GameStateSerializer
         public List<LogSnapshot> Log { get; set; } = [];
     }
 
-    private sealed record FactionSnapshot(string Id, string Type, string Name, string Color, string Description, bool IsPlayer);
+    private sealed record FactionSnapshot(string Id, string Type, string Name, string RaceId, string Color, string Description, bool IsPlayer);
     private sealed record CoordSnapshot(int Q, int R);
     private sealed record WorldGenerationSnapshot(int MapSize, int Civilizations, int Wetness, int GrasslandShrublandBias, int DesertBadlandsBias, int ConiferBroadleafForestBias, int ElevationVariance, int MaxSeaNumber, ClimateBias ClimateBias, List<string> AllowedFactionIds)
     {
@@ -288,9 +309,10 @@ public static class GameStateSerializer
         }
     }
     private sealed record RegionSnapshot(int Id, string Name, List<CoordSnapshot> TileCoords, MoistureLevel Moisture, TemperatureBand Temperature, BaseBiome BaseBiome, string FinalBiomeName);
-    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? CityId, List<int> GroupIds);
-    private sealed record GroupSnapshot(int Id, string Name, string FactionId, int Q, int R, double MovementLeft, int? StationedCityId, List<UnitSnapshot> Units);
+    private sealed record TileSnapshot(int Q, int R, Elevation Elevation, MoistureLevel Moisture, WaterBodyKind WaterBodyKind, int? RegionId, List<string> FeatureIds, string? ResourceId, int? LocationId, List<int> GroupIds);
+    private sealed record GroupSnapshot(int Id, string Name, string FactionId, int Q, int R, double MovementLeft, int? StationedCityId, List<InventorySnapshot> Inventory, List<UnitSnapshot> Units);
     private sealed record UnitSnapshot(int Id, string TypeId, string? Name);
-    private sealed record CitySnapshot(int Id, string Name, string FactionId, int Q, int R, int TownCenterLevel, List<int> StationedGroupIds);
+    private sealed record CitySnapshot(int Id, LocationKind Kind, string Name, string FactionId, int Q, int R, int TownCenterLevel, int Population, List<InventorySnapshot> Inventory, List<int> StationedGroupIds);
+    private sealed record InventorySnapshot(ResourceCategory Category, double Quantity);
     private sealed record LogSnapshot(int Turn, string Text);
 }

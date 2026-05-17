@@ -5,6 +5,8 @@ namespace StrategyGame.Core;
 // make drawing and click lookup direct instead of scanning every group.
 public sealed class HexTile
 {
+    private int? _locationId;
+
     public required HexCoord Coord { get; init; }
     public Elevation Elevation { get; set; }
     public MoistureLevel Moisture { get; set; }
@@ -12,7 +14,8 @@ public sealed class HexTile
     public int? RegionId { get; set; }
     public List<string> FeatureIds { get; } = [];
     public string? ResourceId { get; set; }
-    public int? CityId { get; set; }
+    public int? LocationId { get => _locationId; set => _locationId = value; }
+    public int? CityId { get => _locationId; set => _locationId = value; }
     public List<int> GroupIds { get; } = [];
 }
 
@@ -104,6 +107,7 @@ public sealed class FactionState
     public required string Id { get; init; }
     public required string Type { get; init; }
     public required string Name { get; init; }
+    public required string RaceId { get; init; }
     public required string Color { get; init; }
     public required string Description { get; init; }
     public required bool IsPlayer { get; init; }
@@ -119,9 +123,8 @@ public sealed class UnitInstance
     public string? Name { get; init; }
 }
 
-// GroupState is any movable set of units. A lone agent is a one-unit group with
-// an agent-role UnitInstance; larger groups may also contain agent units after
-// merging. Stationed groups live in a city garrison instead of on the map.
+// GroupState is any movable set of units. Stationed military groups live in a
+// settlement garrison instead of on the map.
 public sealed class GroupState
 {
     public int Id { get; init; }
@@ -129,19 +132,24 @@ public sealed class GroupState
     public required string FactionId { get; init; }
     public required HexCoord Coord { get; set; }
     public List<UnitInstance> Units { get; } = [];
+    public Dictionary<ResourceCategory, double> Inventory { get; } = [];
     public double MovementLeft { get; set; }
     public int? StationedCityId { get; set; }
 }
 
-// CityState is the prototype settlement model. TownCenterLevel is the single
-// hardcoded settlement progression used for map sprite and upgrade rules.
-public sealed class CityState
+// LocationState is the board model for established places. Settlement locations
+// keep the existing town-center and garrison behavior; farms, camps, and mines
+// are available for future creation and production rules.
+public sealed class LocationState
 {
     public int Id { get; init; }
+    public LocationKind Kind { get; set; } = LocationKind.Settlement;
     public required string Name { get; init; }
     public required string FactionId { get; set; }
     public required HexCoord Coord { get; init; }
     public int TownCenterLevel { get; set; }
+    public int Population { get; set; }
+    public Dictionary<ResourceCategory, double> Inventory { get; } = [];
     public List<int> StationedGroupIds { get; } = [];
 }
 

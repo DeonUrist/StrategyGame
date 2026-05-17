@@ -10,26 +10,45 @@ public interface IHasId { string Id { get; } }
 public sealed record ResourceDefinition(string Id, string Name) : IHasId;
 public sealed record UnitDefinition(
     string Id,
-    string Role,
     string Name,
     int Damage,
     int Health,
     int Armor,
     double Movement,
-    string AttackType,
-    string Sprite) : IHasId;
+    double Strength,
+    string AttackType) : IHasId;
 public sealed record BuildingDefinition(string Id, List<BuildingLevelDefinition> Levels) : IHasId;
 public sealed record BuildingLevelDefinition(int Level, string Name, string Sprite);
 public sealed record FactionDefinition(
     string Id,
     string Type,
     string Name,
+    string RaceId,
     string Color,
     bool IsPlayer,
     string Description,
     List<string> CityNames,
-    Dictionary<string, int> StartingArmy) : IHasId;
+    int StartingPopulation,
+    Dictionary<string, int> StartingArmy,
+    List<UnitDefinition> Units) : IHasId;
 public sealed record EventDefinition(string Id, string Name, int BaseWeight) : IHasId;
+
+public enum ResourceCategory
+{
+    Supplies,
+    Materials,
+    CommonGoods,
+    LuxuryGoods,
+    Armaments
+}
+
+public enum LocationKind
+{
+    Settlement,
+    Farm,
+    Camp,
+    Mine
+}
 
 public enum Elevation
 {

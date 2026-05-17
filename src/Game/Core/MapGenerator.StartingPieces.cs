@@ -19,7 +19,7 @@ public static partial class MapGenerator
         for (var i = 0; i < state.Factions.Count; i++)
         {
             // Each faction starts with one city and one stationed garrison group
-            // containing authored starting units plus the faction agent.
+            // containing authored starting military units.
             // If the preferred start is water or rugged mountains, FindNearestStart
             // moves it to a flatter passable tile.
             var faction = state.Factions[i];
@@ -31,9 +31,8 @@ public static partial class MapGenerator
                 groupId++,
                 faction.Id,
                 start,
-                StartingArmyUnits(state, faction.Id).Concat([UnitIdForRole(state, faction.Id, "agent")]),
+                StartingArmyUnits(state, faction.Id),
                 ref unitId,
-                $"{faction.Name} Agent",
                 i + 1);
         }
     }
@@ -52,20 +51,27 @@ public static partial class MapGenerator
 
     private static void AddCity(GameState state, int id, string name, string factionId, HexCoord coord)
     {
-        // City ownership is stored on the CityState. The tile stores only the id
-        // so map lookups can quickly find the city on a clicked hex.
-        var city = new CityState { Id = id, Name = name, FactionId = factionId, Coord = coord };
+        // Location ownership is stored on the LocationState. The tile stores only
+        // the id so map lookups can quickly find the location on a clicked hex.
+        var city = new LocationState
+        {
+            Id = id,
+            Kind = LocationKind.Settlement,
+            Name = name,
+            FactionId = factionId,
+            Coord = coord,
+            Population = state.Database.Factions[factionId].StartingPopulation
+        };
         state.Cities[id] = city;
-        state.Map.Get(coord).CityId = id;
+        state.Map.Get(coord).LocationId = id;
     }
 
-    private static void AddGarrisonGroup(GameState state, int id, string factionId, HexCoord coord, IEnumerable<string> units, ref int unitId, string agentName, int cityId)
+    private static void AddGarrisonGroup(GameState state, int id, string factionId, HexCoord coord, IEnumerable<string> units, ref int unitId, int cityId)
     {
         var group = new GroupState { Id = id, FactionId = factionId, Coord = coord, StationedCityId = cityId };
         foreach (var typeId in units)
         {
-            var isAgent = state.Database.Units[typeId].Role.Equals("agent", StringComparison.OrdinalIgnoreCase);
-            group.Units.Add(new UnitInstance { Id = unitId++, TypeId = typeId, Name = isAgent ? agentName : null });
+            group.Units.Add(new UnitInstance { Id = unitId++, TypeId = typeId });
         }
 
         state.Groups[id] = group;
@@ -75,9 +81,9 @@ public static partial class MapGenerator
     private static IEnumerable<string> StartingArmyUnits(GameState state, string factionId)
     {
         var faction = state.Database.Factions[factionId];
-        foreach (var (role, quantity) in faction.StartingArmy)
+        foreach (var (unitId, quantity) in faction.StartingArmy)
         {
-            var typeId = UnitIdForRole(state, factionId, role);
+            var typeId = ValidateStartingUnitId(state, factionId, unitId);
             for (var i = 0; i < quantity; i++)
             {
                 yield return typeId;
@@ -85,11 +91,13 @@ public static partial class MapGenerator
         }
     }
 
-    private static string UnitIdForRole(GameState state, string factionId, string role)
+    private static string ValidateStartingUnitId(GameState state, string factionId, string unitId)
     {
-        return state.Database.Units.Values
-            .Where(unit => string.Equals(unit.Role, role, StringComparison.OrdinalIgnoreCase))
-            .First(unit => unit.Id.StartsWith($"{factionId}_", StringComparison.OrdinalIgnoreCase))
-            .Id;
+        if (!state.Database.Units.TryGetValue(factionId, out var units) || !units.ContainsKey(unitId))
+        {
+            throw new InvalidOperationException($"Faction {factionId} does not define starting unit {unitId}.");
+        }
+
+        return unitId;
     }
 }

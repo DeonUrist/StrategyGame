@@ -43,9 +43,7 @@ public sealed partial class FactionDirector
                 continue;
             }
 
-            var target = GameRules.IsSingleAgentGroup(state, group)
-                ? ChooseScoutTarget(state, group.Coord, group.MovementLeft, random)
-                : ChooseGroupTarget(state, group, chosenAction, random);
+            var target = ChooseGroupTarget(state, group, chosenAction, random);
             if (target is not null)
             {
                 var origin = group.Coord;

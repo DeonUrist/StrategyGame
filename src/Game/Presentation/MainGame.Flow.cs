@@ -284,12 +284,12 @@ public partial class MainGame
         }
 
         var tile = state.Map.Get(group.Coord);
-        if (tile.CityId is not { } cityId)
+        if (tile.LocationId is not { } cityId)
         {
             return;
         }
 
-        ShowUnitSelectionMenu(group.Units, "Station", selectedUnitIds =>
+        ShowUnitSelectionMenu(group.FactionId, group.Units, "Garrison", selectedUnitIds =>
         {
             var stationed = GameRules.GetCityGarrison(state, cityId) is not null
                 ? GameRules.TryStationUnits(state, group.Id, cityId, selectedUnitIds)
@@ -323,7 +323,7 @@ public partial class MainGame
 
     private void DeployStationedGroup()
     {
-        if (_state is not { } state || _inspectedTileCoord is not { } coord || !state.Map.TryGet(coord, out var tile) || tile.CityId is not { } cityId)
+        if (_state is not { } state || _inspectedTileCoord is not { } coord || !state.Map.TryGet(coord, out var tile) || tile.LocationId is not { } cityId)
         {
             return;
         }
@@ -333,7 +333,7 @@ public partial class MainGame
             return;
         }
 
-        ShowUnitSelectionMenu(garrison.Units, "Deploy", selectedUnitIds =>
+        ShowUnitSelectionMenu(garrison.FactionId, garrison.Units, "Mobilize", selectedUnitIds =>
         {
             var deployedId = GameRules.TryDeployUnits(state, cityId, selectedUnitIds);
             if (deployedId is { } groupId && state.Groups.TryGetValue(groupId, out var deployed))
@@ -348,6 +348,135 @@ public partial class MainGame
         });
     }
 
+    private void RelocateCiviliansFromInspectedLocation()
+    {
+        if (_state is not { } state
+            || _inspectedTileCoord is not { } coord
+            || !state.Map.TryGet(coord, out var tile)
+            || tile.LocationId is not { } locationId
+            || !state.Cities.TryGetValue(locationId, out var location)
+            || location.Population <= 0)
+        {
+            return;
+        }
+
+        foreach (var child in _actionMenuButtons.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var header = new HBoxContainer();
+        _actionMenuButtons.AddChild(header);
+        header.AddChild(new Label
+        {
+            Text = $"{location.Name} {location.Population}",
+            CustomMinimumSize = new Vector2(170, 0),
+            HorizontalAlignment = HorizontalAlignment.Left
+        });
+        header.AddChild(new Label
+        {
+            Text = "",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        });
+        var groupHeader = new Label
+        {
+            Text = "Group 0",
+            CustomMinimumSize = new Vector2(170, 0),
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        header.AddChild(groupHeader);
+        _actionMenuButtons.AddChild(new HSeparator());
+
+        var row = new HBoxContainer();
+        _actionMenuButtons.AddChild(row);
+
+        var locationLabel = new Label
+        {
+            Text = $"{location.Population}",
+            CustomMinimumSize = new Vector2(48, 0),
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        row.AddChild(locationLabel);
+
+        var slider = new HSlider
+        {
+            MinValue = 0,
+            MaxValue = location.Population,
+            Step = 1,
+            Value = 0,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        row.AddChild(slider);
+
+        var groupLabel = new Label
+        {
+            Text = "0",
+            CustomMinimumSize = new Vector2(48, 0),
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        row.AddChild(groupLabel);
+
+        slider.ValueChanged += value =>
+        {
+            var amount = (int)value;
+            locationLabel.Text = $"{location.Population - amount}";
+            groupLabel.Text = $"{amount}";
+            groupHeader.Text = $"Group {amount}";
+        };
+
+        var buttons = new HBoxContainer();
+        _actionMenuButtons.AddChild(buttons);
+
+        var relocate = new Button { Text = "Relocate" };
+        ApplyButtonChrome(relocate);
+        relocate.Pressed += () =>
+        {
+            var count = (int)slider.Value;
+            if (count <= 0)
+            {
+                return;
+            }
+
+            var groupId = GameRules.TryRelocateCivilians(state, location.Id, count);
+            if (groupId is { } createdId && state.Groups.TryGetValue(createdId, out var created))
+            {
+                SelectGroup(state, created);
+                ComputeSelectedRange(state);
+            }
+
+            _actionMenuPanel.Visible = false;
+            UpdatePanel(tile);
+            SyncDynamicObjects();
+        };
+        buttons.AddChild(relocate);
+
+        var cancel = new Button { Text = "Cancel" };
+        ApplyButtonChrome(cancel);
+        cancel.Pressed += () => _actionMenuPanel.Visible = false;
+        buttons.AddChild(cancel);
+
+        _actionMenuPanel.Visible = true;
+    }
+
+    private void SettleSelectedCivilians()
+    {
+        if (_state is not { } state || _selectedGroupId is not { } groupId || !state.Groups.TryGetValue(groupId, out var group))
+        {
+            return;
+        }
+
+        var tile = state.Map.Get(group.Coord);
+        if (!GameRules.TrySettleCivilians(state, group.Id))
+        {
+            return;
+        }
+
+        ClearSelection();
+        _actionMenuPanel.Visible = false;
+        UpdatePanel(tile);
+        SyncDynamicObjects();
+    }
+
     private void TransferUnitsToSelectedGroup()
     {
         if (_state is not { } state || _selectedGroupId is not { } groupId || !state.Groups.TryGetValue(groupId, out var selected))
@@ -358,7 +487,9 @@ public partial class MainGame
         var groups = state.Map.Get(selected.Coord).GroupIds
             .Where(id => id != selected.Id)
             .Select(id => state.Groups[id])
-            .Where(group => group.FactionId == selected.FactionId && group.StationedCityId is null)
+            .Where(group => group.FactionId == selected.FactionId
+                            && group.StationedCityId is null
+                            && GameRules.HaveCompatibleUnitCategory(state, selected, group))
             .OrderBy(group => group.Id)
             .ToList();
 
@@ -401,7 +532,7 @@ public partial class MainGame
         var typeIds = leftCounts.Keys
             .Concat(rightCounts.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(typeId => state.Database.Units[typeId].Name)
+            .OrderBy(typeId => state.Database.Unit(leftGroup.FactionId, typeId).Name)
             .ToList();
 
         foreach (var typeId in typeIds)
@@ -409,7 +540,7 @@ public partial class MainGame
             var leftCount = leftCounts.GetValueOrDefault(typeId);
             var rightCount = rightCounts.GetValueOrDefault(typeId);
             var totalCount = leftCount + rightCount;
-            var unitName = state.Database.Units[typeId].Name;
+            var unitName = state.Database.Unit(leftGroup.FactionId, typeId).Name;
             var row = new HBoxContainer();
             _actionMenuButtons.AddChild(row);
 
@@ -506,7 +637,7 @@ public partial class MainGame
             return;
         }
 
-        ShowUnitSelectionMenu(selected.Units, "Split", selectedUnitIds =>
+        ShowUnitSelectionMenu(selected.FactionId, selected.Units, "Split", selectedUnitIds =>
         {
             var createdId = GameRules.TrySplitGroup(state, selected.Id, selectedUnitIds);
             if (createdId is { } newGroupId && state.Groups.TryGetValue(newGroupId, out var created))
@@ -699,6 +830,7 @@ public partial class MainGame
     }
 
     private void ShowUnitSelectionMenu(
+        string factionId,
         IReadOnlyCollection<UnitInstance> units,
         string confirmText,
         Action<IReadOnlyCollection<int>> onConfirm,
@@ -790,7 +922,7 @@ public partial class MainGame
 
         string stateUnitName(string typeId)
         {
-            return _state?.Database.Units[typeId].Name ?? typeId;
+            return _state?.Database.Unit(factionId, typeId).Name ?? typeId;
         }
     }
 
@@ -836,12 +968,6 @@ public partial class MainGame
         }
 
         return selected;
-    }
-
-    private static string UnitMenuLabel(GameState state, UnitInstance unit)
-    {
-        var definition = state.Database.Units[unit.TypeId];
-        return unit.Name is null ? definition.Name : $"{unit.Name} ({definition.Name.ToLowerInvariant()})";
     }
 
     private static string GroupMenuLabel(GameState state, GroupState group)

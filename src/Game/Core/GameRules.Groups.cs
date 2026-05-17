@@ -60,7 +60,7 @@ public static partial class GameRules
             return false;
         }
 
-        if (!CanTransferBetween(source, target))
+        if (!CanTransferBetween(source, target) || !HaveCompatibleUnitCategory(state, source, target))
         {
             return false;
         }
@@ -68,6 +68,12 @@ public static partial class GameRules
         var requested = unitIds.ToHashSet();
         var moving = source.Units.Where(unit => requested.Contains(unit.Id)).ToList();
         if (moving.Count != requested.Count)
+        {
+            return false;
+        }
+
+        var movingCivilian = moving.All(unit => IsCivilianUnit(state, source, unit));
+        if (movingCivilian != IsCivilianOnlyGroup(state, target))
         {
             return false;
         }
@@ -105,6 +111,94 @@ public static partial class GameRules
         return true;
     }
 
+    public static double GroupStrength(GameState state, GroupState group)
+    {
+        return group.Units.Sum(unit => state.Database.Unit(group.FactionId, unit.TypeId).Strength);
+    }
+
+    public static double GroupCarryCapacity(GameState state, GroupState group)
+    {
+        return GroupStrength(state, group) * 5.0;
+    }
+
+    public static double GroupInventoryWeight(GroupState group)
+    {
+        return group.Inventory.Values.Sum();
+    }
+
+    public static bool TryAddGroupInventory(GameState state, GroupState group, ResourceCategory category, double quantity)
+    {
+        if (quantity < 0 || GroupInventoryWeight(group) + quantity > GroupCarryCapacity(state, group))
+        {
+            return false;
+        }
+
+        group.Inventory[category] = group.Inventory.GetValueOrDefault(category) + quantity;
+        return true;
+    }
+
+    public static bool TryAddLocationInventory(LocationState location, ResourceCategory category, double quantity)
+    {
+        if (quantity < 0)
+        {
+            return false;
+        }
+
+        location.Inventory[category] = location.Inventory.GetValueOrDefault(category) + quantity;
+        return true;
+    }
+
+    public static int? TryRelocateCivilians(GameState state, int locationId, int count)
+    {
+        if (count <= 0
+            || !state.Cities.TryGetValue(locationId, out var location)
+            || location.Population < count
+            || CivilianUnitIdForFaction(state, location.FactionId) is not { } civilianTypeId)
+        {
+            return null;
+        }
+
+        var group = new GroupState
+        {
+            Id = NextGroupId(state),
+            FactionId = location.FactionId,
+            Coord = location.Coord,
+            MovementLeft = state.Database.Unit(location.FactionId, civilianTypeId).Movement
+        };
+
+        var nextUnitId = NextUnitId(state);
+        for (var i = 0; i < count; i++)
+        {
+            group.Units.Add(new UnitInstance { Id = nextUnitId++, TypeId = civilianTypeId });
+        }
+
+        location.Population -= count;
+        state.Groups[group.Id] = group;
+        state.Map.Get(location.Coord).GroupIds.Add(group.Id);
+        state.AddLog($"{count} civilian{(count == 1 ? "" : "s")} relocated from {location.Name}.");
+        return group.Id;
+    }
+
+    public static bool TrySettleCivilians(GameState state, int groupId)
+    {
+        if (!state.Groups.TryGetValue(groupId, out var group)
+            || group.StationedCityId is not null
+            || !IsCivilianOnlyGroup(state, group)
+            || !state.Map.TryGet(group.Coord, out var tile)
+            || tile.LocationId is not { } locationId
+            || !state.Cities.TryGetValue(locationId, out var location)
+            || location.FactionId != group.FactionId)
+        {
+            return false;
+        }
+
+        var count = group.Units.Count;
+        location.Population += count;
+        RemoveGroup(state, group);
+        state.AddLog($"{count} civilian{(count == 1 ? "" : "s")} settled at {location.Name}.");
+        return true;
+    }
+
     public static int? TrySplitGroup(GameState state, int groupId, IReadOnlyCollection<int> unitIds)
     {
         if (!state.Groups.TryGetValue(groupId, out var source) || unitIds.Count == 0 || unitIds.Count >= source.Units.Count)
@@ -130,7 +224,7 @@ public static partial class GameRules
             FactionId = source.FactionId,
             Coord = source.Coord,
             StationedCityId = source.StationedCityId,
-            MovementLeft = Math.Min(source.MovementLeft, MaxUnitMovement(state, moving))
+            MovementLeft = Math.Min(source.MovementLeft, MaxUnitMovement(state, source.FactionId, moving))
         };
         created.Units.AddRange(moving);
         state.Groups[created.Id] = created;
@@ -154,6 +248,7 @@ public static partial class GameRules
         if (!state.Groups.TryGetValue(groupId, out var group)
             || group.StationedCityId is not null
             || !state.Cities.TryGetValue(cityId, out var city)
+            || city.Kind != LocationKind.Settlement
             || city.FactionId != group.FactionId
             || city.Coord != group.Coord)
         {
@@ -177,6 +272,7 @@ public static partial class GameRules
         if (!state.Groups.TryGetValue(groupId, out var group)
             || group.StationedCityId is not null
             || !state.Cities.TryGetValue(cityId, out var city)
+            || city.Kind != LocationKind.Settlement
             || city.FactionId != group.FactionId
             || city.Coord != group.Coord
             || GetCityGarrison(state, cityId) is not { } garrison)
@@ -192,6 +288,7 @@ public static partial class GameRules
         if (!state.Groups.TryGetValue(groupId, out var group)
             || group.StationedCityId is not { } cityId
             || !state.Cities.TryGetValue(cityId, out var city)
+            || city.Kind != LocationKind.Settlement
             || !state.Map.TryGet(city.Coord, out var tile)
             || !TerrainResolver.Resolve(state, tile).Passable)
         {
@@ -209,6 +306,7 @@ public static partial class GameRules
     public static int? TryDeployUnits(GameState state, int cityId, IReadOnlyCollection<int> unitIds)
     {
         if (!state.Cities.TryGetValue(cityId, out var city)
+            || city.Kind != LocationKind.Settlement
             || GetCityGarrison(state, cityId) is not { } garrison
             || !state.Map.TryGet(city.Coord, out var tile)
             || !TerrainResolver.Resolve(state, tile).Passable
@@ -242,29 +340,48 @@ public static partial class GameRules
             : null;
     }
 
-    public static bool IsSingleAgentGroup(GameState state, GroupState group)
+    public static bool IsCivilianUnit(GameState state, GroupState group, UnitInstance unit)
     {
-        return group.Units.Count == 1 && IsAgentUnit(state, group.Units[0]);
+        return state.Database.Unit(group.FactionId, unit.TypeId).Id.Equals("civilian", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool IsAgentUnit(GameState state, UnitInstance unit)
+    public static bool IsCivilianOnlyGroup(GameState state, GroupState group)
     {
-        return state.Database.Units[unit.TypeId].Role.Equals("agent", StringComparison.OrdinalIgnoreCase);
+        return group.Units.Count > 0 && group.Units.All(unit => IsCivilianUnit(state, group, unit));
+    }
+
+    public static bool HaveCompatibleUnitCategory(GameState state, GroupState source, GroupState target)
+    {
+        return IsCivilianOnlyGroup(state, source) == IsCivilianOnlyGroup(state, target);
     }
 
     public static double MaxGroupMovement(GameState state, GroupState group)
     {
-        return group.Units.Count == 0 ? 0.0 : MaxUnitMovement(state, group.Units);
+        return group.Units.Count == 0 ? 0.0 : MaxUnitMovement(state, group.FactionId, group.Units);
     }
 
-    private static double MaxUnitMovement(GameState state, IEnumerable<UnitInstance> units)
+    private static double MaxUnitMovement(GameState state, string factionId, IEnumerable<UnitInstance> units)
     {
-        return units.Min(unit => state.Database.Units[unit.TypeId].Movement);
+        return units.Min(unit => state.Database.Unit(factionId, unit.TypeId).Movement);
     }
 
     private static int NextGroupId(GameState state)
     {
         return state.Groups.Count == 0 ? 1 : state.Groups.Keys.Max() + 1;
+    }
+
+    private static int NextUnitId(GameState state)
+    {
+        var unitIds = state.Groups.Values.SelectMany(group => group.Units).Select(unit => unit.Id);
+        return unitIds.Any() ? unitIds.Max() + 1 : 1;
+    }
+
+    private static string? CivilianUnitIdForFaction(GameState state, string factionId)
+    {
+        return state.Database.Units.TryGetValue(factionId, out var units)
+            ? units.Values.FirstOrDefault(unit => unit.Id.Equals("civilian", StringComparison.OrdinalIgnoreCase))
+                ?.Id
+            : null;
     }
 
     private static void RemoveGroup(GameState state, GroupState group)
@@ -283,23 +400,12 @@ public static partial class GameRules
 
     public static string GroupDisplayName(GameState state, GroupState group)
     {
-        return string.IsNullOrWhiteSpace(group.Name)
-            ? FactionAdjective(group.FactionId)
-            : group.Name;
-    }
-
-    public static string FactionAdjective(string factionId)
-    {
-        return factionId.ToLowerInvariant() switch
+        if (!string.IsNullOrWhiteSpace(group.Name))
         {
-            "dwarves" => "Dwarven",
-            "elves" => "Elven",
-            "humans" => "Human",
-            "orcs" => "Orcish",
-            "ratmen" => "Ratman",
-            "undead" => "Undead",
-            var id => char.ToUpperInvariant(id[0]) + id[1..]
-        };
+            return group.Name;
+        }
+
+        return IsCivilianOnlyGroup(state, group) ? "Civilians" : "Squad";
     }
 
     private static bool CanTransferBetween(GroupState source, GroupState target)

@@ -3,60 +3,401 @@
     "id": "humans",
     "type": "Humans",
     "name": "Humans",
+    "raceId": "humans",
     "color": "#3f7ef5",
     "isPlayer": true,
     "description": "Adaptable settlers, soldiers, and road builders.",
-    "cityNames": ["Aldcrest", "Blackford", "Dunmire", "Gravenhold", "Ironvale", "Rookhaven", "Stormwatch", "Vowmarket"],
-    "startingArmy": { "militia": 3, "soldier": 1, "ranged": 1 }
+    "cityNames": [
+      "Aldcrest",
+      "Blackford",
+      "Dunmire",
+      "Gravenhold",
+      "Ironvale",
+      "Rookhaven",
+      "Stormwatch",
+      "Vowmarket"
+    ],
+    "startingPopulation": 10,
+    "startingArmy": {
+      "militia": 3,
+      "soldier": 1,
+      "ranged": 1
+    },
+    "units": [
+      {
+        "id": "civilian",
+        "name": "Settler",
+        "damage": 0,
+        "health": 5,
+        "armor": 0,
+        "movement": 2,
+        "strength": 1.0,
+        "attackType": "none"
+      },
+      {
+        "id": "militia",
+        "name": "Militia",
+        "damage": 3,
+        "health": 8,
+        "armor": 1,
+        "movement": 3,
+        "strength": 1.0,
+        "attackType": "melee"
+      },
+      {
+        "id": "ranged",
+        "name": "Archer",
+        "damage": 4,
+        "health": 7,
+        "armor": 1,
+        "movement": 3,
+        "strength": 1.0,
+        "attackType": "ranged"
+      },
+      {
+        "id": "soldier",
+        "name": "Swordsman",
+        "damage": 5,
+        "health": 10,
+        "armor": 3,
+        "movement": 2,
+        "strength": 1.0,
+        "attackType": "melee"
+      }
+    ]
   },
   {
     "id": "orcs",
     "type": "Orcs",
     "name": "Orcs",
+    "raceId": "orcs",
     "color": "#8f5a35",
     "isPlayer": false,
     "description": "Hard marching clans with brutal close fighters.",
-    "cityNames": ["Bloodroot", "Bramblehorn", "Clawmere", "Gorefen", "Mournhide", "Red Antler", "Thornmaw", "Wolfscree"],
-    "startingArmy": { "militia": 4, "soldier": 2, "ranged": 1 }
+    "cityNames": [
+      "Bloodroot",
+      "Bramblehorn",
+      "Clawmere",
+      "Gorefen",
+      "Mournhide",
+      "Red Antler",
+      "Thornmaw",
+      "Wolfscree"
+    ],
+    "startingPopulation": 10,
+    "startingArmy": {
+      "militia": 4,
+      "soldier": 2,
+      "ranged": 1
+    },
+    "units": [
+      {
+        "id": "civilian",
+        "name": "Laborer",
+        "damage": 0,
+        "health": 5,
+        "armor": 0,
+        "movement": 2,
+        "strength": 1.2,
+        "attackType": "none"
+      },
+      {
+        "id": "militia",
+        "name": "Grunt",
+        "damage": 4,
+        "health": 9,
+        "armor": 1,
+        "movement": 3,
+        "strength": 1.2,
+        "attackType": "melee"
+      },
+      {
+        "id": "ranged",
+        "name": "Javelineer",
+        "damage": 4,
+        "health": 8,
+        "armor": 1,
+        "movement": 3,
+        "strength": 1.2,
+        "attackType": "ranged"
+      },
+      {
+        "id": "soldier",
+        "name": "Brute",
+        "damage": 7,
+        "health": 12,
+        "armor": 2,
+        "movement": 2,
+        "strength": 1.2,
+        "attackType": "melee"
+      }
+    ]
   },
   {
     "id": "undead",
     "type": "Undead",
     "name": "Undead",
+    "raceId": "undead",
     "color": "#7a6f63",
     "isPlayer": false,
     "description": "Restless dead gathered around cold graves and ruined halls.",
-    "cityNames": ["Blackvault", "Cindercrypt", "Gravemere", "Moldgate", "Pale Barrow", "Rattlefen", "Tallowden", "Wormvault"],
-    "startingArmy": { "militia": 5, "soldier": 2 }
+    "cityNames": [
+      "Blackvault",
+      "Cindercrypt",
+      "Gravemere",
+      "Moldgate",
+      "Pale Barrow",
+      "Rattlefen",
+      "Tallowden",
+      "Wormvault"
+    ],
+    "startingPopulation": 10,
+    "startingArmy": {
+      "militia": 5,
+      "soldier": 2
+    },
+    "units": [
+      {
+        "id": "civilian",
+        "name": "Thrall",
+        "damage": 0,
+        "health": 5,
+        "armor": 0,
+        "movement": 2,
+        "strength": 1.0,
+        "attackType": "none"
+      },
+      {
+        "id": "militia",
+        "name": "Skeleton",
+        "damage": 3,
+        "health": 7,
+        "armor": 1,
+        "movement": 3,
+        "strength": 1.0,
+        "attackType": "melee"
+      },
+      {
+        "id": "ranged",
+        "name": "Bone Archer",
+        "damage": 4,
+        "health": 6,
+        "armor": 1,
+        "movement": 3,
+        "strength": 1.0,
+        "attackType": "ranged"
+      },
+      {
+        "id": "soldier",
+        "name": "Grave Guard",
+        "damage": 5,
+        "health": 11,
+        "armor": 3,
+        "movement": 2,
+        "strength": 1.0,
+        "attackType": "melee"
+      }
+    ]
   },
   {
     "id": "ratmen",
     "type": "Ratmen",
     "name": "Ratmen",
+    "raceId": "ratmen",
     "color": "#c58b3a",
     "isPlayer": false,
     "description": "Fast scavengers, tunnel fighters, and skirmishers.",
-    "cityNames": ["Blackwarren", "Cinderburrow", "Gnawgate", "Moldmere", "Rusthole", "Slinkmarket", "Tallowden", "Wormvault"],
-    "startingArmy": { "militia": 5, "soldier": 1, "ranged": 1 }
+    "cityNames": [
+      "Blackwarren",
+      "Cinderburrow",
+      "Gnawgate",
+      "Moldmere",
+      "Rusthole",
+      "Slinkmarket",
+      "Tallowden",
+      "Wormvault"
+    ],
+    "startingPopulation": 15,
+    "startingArmy": {
+      "militia": 5,
+      "soldier": 1,
+      "ranged": 1
+    },
+    "units": [
+      {
+        "id": "civilian",
+        "name": "Scavenger",
+        "damage": 0,
+        "health": 5,
+        "armor": 0,
+        "movement": 2,
+        "strength": 0.9,
+        "attackType": "none"
+      },
+      {
+        "id": "militia",
+        "name": "Scratcher",
+        "damage": 3,
+        "health": 6,
+        "armor": 0,
+        "movement": 4,
+        "strength": 0.9,
+        "attackType": "melee"
+      },
+      {
+        "id": "ranged",
+        "name": "Slinger",
+        "damage": 4,
+        "health": 6,
+        "armor": 0,
+        "movement": 4,
+        "strength": 0.9,
+        "attackType": "ranged"
+      },
+      {
+        "id": "soldier",
+        "name": "Tunnel Guard",
+        "damage": 4,
+        "health": 8,
+        "armor": 2,
+        "movement": 3,
+        "strength": 0.9,
+        "attackType": "melee"
+      }
+    ]
   },
   {
     "id": "elves",
     "type": "Elves",
     "name": "Elves",
+    "raceId": "elves",
     "color": "#2aa876",
     "isPlayer": false,
     "description": "Woodland fighters with quick scouts and strong archers.",
-    "cityNames": ["Briarveil", "Ebonleaf", "Lethir", "Moonhollow", "Palegrove", "Sablebough", "Thornmere", "Vel Ashar"],
-    "startingArmy": { "militia": 2, "soldier": 1, "ranged": 3 }
+    "cityNames": [
+      "Briarveil",
+      "Ebonleaf",
+      "Lethir",
+      "Moonhollow",
+      "Palegrove",
+      "Sablebough",
+      "Thornmere",
+      "Vel Ashar"
+    ],
+    "startingPopulation": 10,
+    "startingArmy": {
+      "militia": 2,
+      "soldier": 1,
+      "ranged": 3
+    },
+    "units": [
+      {
+        "id": "civilian",
+        "name": "Keeper",
+        "damage": 0,
+        "health": 5,
+        "armor": 0,
+        "movement": 2,
+        "strength": 1.0,
+        "attackType": "none"
+      },
+      {
+        "id": "militia",
+        "name": "Watcher",
+        "damage": 3,
+        "health": 7,
+        "armor": 1,
+        "movement": 4,
+        "strength": 1.0,
+        "attackType": "melee"
+      },
+      {
+        "id": "ranged",
+        "name": "Longbow",
+        "damage": 6,
+        "health": 7,
+        "armor": 1,
+        "movement": 4,
+        "strength": 1.0,
+        "attackType": "ranged"
+      },
+      {
+        "id": "soldier",
+        "name": "Blade Dancer",
+        "damage": 5,
+        "health": 8,
+        "armor": 2,
+        "movement": 4,
+        "strength": 1.0,
+        "attackType": "melee"
+      }
+    ]
   },
   {
     "id": "dwarves",
     "type": "Dwarves",
     "name": "Dwarves",
+    "raceId": "dwarves",
     "color": "#9b6bd3",
     "isPlayer": false,
     "description": "Stout shield lines, miners, and armored crossbow crews.",
-    "cityNames": ["Anvildeep", "Barak Gloom", "Coalhearth", "Deepmarch", "Grimdelve", "Ironbarrow", "Kraghold", "Stonewake"],
-    "startingArmy": { "militia": 3, "soldier": 2, "ranged": 1 }
+    "cityNames": [
+      "Anvildeep",
+      "Barak Gloom",
+      "Coalhearth",
+      "Deepmarch",
+      "Grimdelve",
+      "Ironbarrow",
+      "Kraghold",
+      "Stonewake"
+    ],
+    "startingPopulation": 10,
+    "startingArmy": {
+      "militia": 3,
+      "soldier": 2,
+      "ranged": 1
+    },
+    "units": [
+      {
+        "id": "civilian",
+        "name": "Clan Worker",
+        "damage": 0,
+        "health": 5,
+        "armor": 0,
+        "movement": 2,
+        "strength": 1.1,
+        "attackType": "none"
+      },
+      {
+        "id": "militia",
+        "name": "Miner",
+        "damage": 3,
+        "health": 10,
+        "armor": 2,
+        "movement": 2,
+        "strength": 1.1,
+        "attackType": "melee"
+      },
+      {
+        "id": "ranged",
+        "name": "Crossbow",
+        "damage": 5,
+        "health": 9,
+        "armor": 2,
+        "movement": 2,
+        "strength": 1.1,
+        "attackType": "ranged"
+      },
+      {
+        "id": "soldier",
+        "name": "Shieldbearer",
+        "damage": 5,
+        "health": 12,
+        "armor": 4,
+        "movement": 2,
+        "strength": 1.1,
+        "attackType": "melee"
+      }
+    ]
   }
 ]

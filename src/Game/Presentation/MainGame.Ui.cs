@@ -230,15 +230,25 @@ public partial class MainGame
         var actionRow = new HBoxContainer();
         leftBox.AddChild(actionRow);
 
-        _stationGroupButton = new Button { Text = "Station", Visible = false };
+        _stationGroupButton = new Button { Text = "Garrison", Visible = false };
         ApplyButtonChrome(_stationGroupButton);
         _stationGroupButton.Pressed += StationSelectedGroup;
         actionRow.AddChild(_stationGroupButton);
 
-        _deployGroupButton = new Button { Text = "Deploy", Visible = false };
+        _deployGroupButton = new Button { Text = "Mobilize", Visible = false };
         ApplyButtonChrome(_deployGroupButton);
         _deployGroupButton.Pressed += DeployStationedGroup;
         actionRow.AddChild(_deployGroupButton);
+
+        _relocateCiviliansButton = new Button { Text = "Relocate", Visible = false };
+        ApplyButtonChrome(_relocateCiviliansButton);
+        _relocateCiviliansButton.Pressed += RelocateCiviliansFromInspectedLocation;
+        actionRow.AddChild(_relocateCiviliansButton);
+
+        _settleCiviliansButton = new Button { Text = "Settle", Visible = false };
+        ApplyButtonChrome(_settleCiviliansButton);
+        _settleCiviliansButton.Pressed += SettleSelectedCivilians;
+        actionRow.AddChild(_settleCiviliansButton);
 
         _transferUnitsButton = new Button { Text = "Transfer Units", Visible = false };
         ApplyButtonChrome(_transferUnitsButton);

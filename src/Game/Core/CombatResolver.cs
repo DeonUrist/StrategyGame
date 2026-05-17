@@ -29,7 +29,7 @@ public static class CombatResolver
 
     public static int GroupStrength(GameState state, GroupState group)
     {
-        return group.Units.Sum(u => UnitPower(state.Database.Units[u.TypeId]));
+        return group.Units.Sum(u => UnitPower(state.Database.Unit(group.FactionId, u.TypeId)));
     }
 
     public static int UnitPower(UnitDefinition unit)

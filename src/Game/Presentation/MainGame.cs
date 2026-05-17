@@ -30,6 +30,8 @@ public partial class MainGame : Node2D
     private Button _loadGameButton = null!;
     private Button _stationGroupButton = null!;
     private Button _deployGroupButton = null!;
+    private Button _relocateCiviliansButton = null!;
+    private Button _settleCiviliansButton = null!;
     private Button _transferUnitsButton = null!;
     private Button _splitGroupButton = null!;
     private Button _renameGroupButton = null!;

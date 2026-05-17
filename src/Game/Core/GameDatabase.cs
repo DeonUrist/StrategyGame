@@ -14,11 +14,16 @@ public sealed class GameDatabase
             new ResourceDefinition("iron", "Iron"),
             new ResourceDefinition("gold", "Gold"),
             new ResourceDefinition("silver", "Silver"),
-            new ResourceDefinition("game", "Game")
+            new ResourceDefinition("game", "Game"),
+            new ResourceDefinition("supplies", "Supplies"),
+            new ResourceDefinition("materials", "Materials"),
+            new ResourceDefinition("common_goods", "Common Goods"),
+            new ResourceDefinition("luxury_goods", "Luxury Goods"),
+            new ResourceDefinition("armaments", "Armaments")
         }.ToDictionary(r => r.Id, StringComparer.OrdinalIgnoreCase);
 
     public required IReadOnlyDictionary<string, ResourceDefinition> Resources { get; init; }
-    public required IReadOnlyDictionary<string, UnitDefinition> Units { get; init; }
+    public required IReadOnlyDictionary<string, IReadOnlyDictionary<string, UnitDefinition>> Units { get; init; }
     public required IReadOnlyDictionary<string, BuildingDefinition> Buildings { get; init; }
     public required IReadOnlyDictionary<string, FactionDefinition> Factions { get; init; }
     public required IReadOnlyDictionary<string, EventDefinition> Events { get; init; }
@@ -33,11 +38,21 @@ public sealed class GameDatabase
         return new GameDatabase
         {
             Resources = CodeResources,
-            Units = LoadFactionUnits(directory, factions.Keys, options),
+            Units = LoadFactionUnits(factions),
             Buildings = Load<BuildingDefinition>(directory, "buildings.json", options),
             Factions = factions,
             Events = Load<EventDefinition>(directory, "events.json", options)
         };
+    }
+
+    public UnitDefinition Unit(string factionId, string unitId)
+    {
+        if (!Units.TryGetValue(factionId, out var factionUnits) || !factionUnits.TryGetValue(unitId, out var unit))
+        {
+            throw new KeyNotFoundException($"Unknown unit '{unitId}' for faction '{factionId}'.");
+        }
+
+        return unit;
     }
 
     private static IReadOnlyDictionary<string, T> Load<T>(string directory, string file, JsonSerializerOptions options)
@@ -52,25 +67,11 @@ public sealed class GameDatabase
         return items.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static IReadOnlyDictionary<string, UnitDefinition> LoadFactionUnits(string directory, IEnumerable<string> factionIds, JsonSerializerOptions options)
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, UnitDefinition>> LoadFactionUnits(IReadOnlyDictionary<string, FactionDefinition> factions)
     {
-        var units = new List<UnitDefinition>();
-        foreach (var factionId in factionIds.Order(StringComparer.OrdinalIgnoreCase))
-        {
-            var factionDirectory = Path.Combine(directory, factionId);
-            if (!Directory.Exists(factionDirectory))
-            {
-                throw new InvalidOperationException($"Missing unit directory {factionDirectory}.");
-            }
-
-            foreach (var file in Directory.GetFiles(factionDirectory, "*.json").OrderBy(Path.GetFileName))
-            {
-                var unit = JsonSerializer.Deserialize<UnitDefinition>(File.ReadAllText(file), options)
-                    ?? throw new InvalidOperationException($"Could not load {file}.");
-                units.Add(unit);
-            }
-        }
-
-        return units.ToDictionary(unit => unit.Id, StringComparer.OrdinalIgnoreCase);
+        return factions.Values.ToDictionary(
+            faction => faction.Id,
+            faction => (IReadOnlyDictionary<string, UnitDefinition>)faction.Units.ToDictionary(unit => unit.Id, StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
     }
 }

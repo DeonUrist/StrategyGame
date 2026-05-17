@@ -7,6 +7,9 @@ var tests = new (string Name, Action Test)[]
 {
     ("hex distance and neighbors", HexDistanceAndNeighbors),
     ("database loads required catalogs", DatabaseLoadsRequiredCatalogs),
+    ("locations start with population and support inventory", LocationsStartWithPopulationAndSupportInventory),
+    ("group carry capacity uses unit strength", GroupCarryCapacityUsesUnitStrength),
+    ("civilian relocate and settle uses population", CivilianRelocateAndSettleUsesPopulation),
     ("terrain resolver applies region biome tables", TerrainResolverAppliesRegionBiomeTables),
     ("terrain movement costs use terrain and elevation", TerrainMovementCostsUseTerrainAndElevation),
     ("terrain variant sliders control generated pairs", TerrainVariantSlidersControlGeneratedPairs),
@@ -20,13 +23,13 @@ var tests = new (string Name, Action Test)[]
     ("elevation variance controls rugged terrain", ElevationVarianceControlsRuggedTerrain),
     ("factions start on passable island tiles", FactionsStartOnPassableIslandTiles),
     ("movement rejects water and spends movement", MovementRejectsWaterAndSpendsMovement),
-    ("deployed agent unit does not auto merge", DeployedAgentUnitDoesNotAutoMerge),
-    ("agent unit splits and merges through group rules", AgentUnitSplitsAndMergesThroughGroupRules),
     ("group split and merge preserves indexes", GroupSplitAndMergePreservesIndexes),
+    ("civilian split and transfer preserves categories", CivilianSplitAndTransferPreservesCategories),
+    ("civilian and military transfer cannot mix", CivilianAndMilitaryTransferCannotMix),
     ("group station and deploy uses city garrison", GroupStationAndDeployUsesCityGarrison),
     ("partial deploy and station keeps one garrison", PartialDeployAndStationKeepsOneGarrison),
     ("group rename persists through save load", GroupRenamePersistsThroughSaveLoad),
-    ("default group display uses faction adjective", DefaultGroupDisplayUsesFactionAdjective),
+    ("default group display uses generic names", DefaultGroupDisplayUsesGenericNames),
     ("city building upgrade replaces previous level", CityBuildingUpgradeReplacesPreviousLevel),
     ("combat removes losing group", CombatRemovesLosingGroup),
     ("director produces valid AI state", DirectorProducesValidAiState),
@@ -63,33 +66,110 @@ void DatabaseLoadsRequiredCatalogs()
     Assert(database.Resources.ContainsKey("silver"), "silver resource missing");
     Assert(database.Resources.ContainsKey("game"), "game resource missing");
     Assert(!File.Exists(Path.Combine(root, "data", "resources.json")), "resources should be code-defined, not JSON-authored");
-    Assert(!File.Exists(Path.Combine(root, "data", "units.json")), "units should be faction-folder authored, not a flat JSON catalog");
-    Assert(database.Units.ContainsKey("humans_agent"), "human agent unit missing");
-    Assert(database.Units.Count == 24, "six factions should each define militia, soldier, ranged, and agent units");
-    Assert(database.Units.Values.All(unit => unit.Damage >= 0 && unit.Health > 0 && unit.Movement > 0), "unit stats should load from JSON");
+    Assert(!File.Exists(Path.Combine(root, "data", "units.json")), "units should not use a flat JSON catalog");
+    Assert(database.Resources.ContainsKey("supplies"), "supplies inventory resource missing");
+    Assert(database.Resources.ContainsKey("materials"), "materials inventory resource missing");
+    Assert(database.Resources.ContainsKey("common_goods"), "common goods inventory resource missing");
+    Assert(database.Resources.ContainsKey("luxury_goods"), "luxury goods inventory resource missing");
+    Assert(database.Resources.ContainsKey("armaments"), "armaments inventory resource missing");
+    Assert(database.Units.Count == 6, "six factions should each define embedded units");
+    Assert(database.Units.Values.SelectMany(units => units.Values).All(unit => unit.Damage >= 0 && unit.Health > 0 && unit.Movement > 0 && unit.Strength > 0), "unit stats should load from JSON");
     Assert(database.Buildings[SettlementProgression.TownCenterId].Levels.Count == 6, "TownCenter should define six settlement levels");
     Assert(database.Buildings[SettlementProgression.TownCenterId].Levels[0].Name == "Campsite", "TownCenter should start at campsite");
     Assert(database.Buildings[SettlementProgression.TownCenterId].Levels[2].Sprite == "homestead", "TownCenter homestead level should use homestead sprite");
     Assert(database.Factions.Count == 6, "six faction type definitions expected");
     Assert(database.Factions.Keys.Order().SequenceEqual(["dwarves", "elves", "humans", "orcs", "ratmen", "undead"]), "factions should use simple race ids");
+    Assert(database.Factions.Values.All(f => f.RaceId == f.Id), "current faction definitions should use race id matching faction id");
     Assert(database.Factions.Values.All(f => f.Name == f.Type), "factions should use simple visible names");
     Assert(database.Factions.Values.All(f => f.CityNames.Count > 0), "each faction should provide editable city names");
     Assert(database.Factions.Values.All(f => f.StartingArmy.Count > 0), "each faction should define a starting army");
     foreach (var faction in database.Factions.Values)
     {
-        var folder = Path.Combine(root, "data", faction.Id);
-        Assert(Directory.Exists(folder), $"{faction.Id} unit folder missing");
-        foreach (var role in new[] { "militia", "soldier", "ranged", "agent" })
+        Assert(!Directory.Exists(Path.Combine(root, "data", faction.Id)), $"{faction.Id} unit folder should not be used");
+        foreach (var unitId in new[] { "militia", "soldier", "ranged", "civilian" })
         {
-            Assert(database.Units.Values.Any(unit => unit.Id.StartsWith($"{faction.Id}_", StringComparison.OrdinalIgnoreCase) && unit.Role == role), $"{faction.Id} {role} unit missing");
+            Assert(database.Units[faction.Id].Values.Any(unit => unit.Id == unitId), $"{faction.Id} {unitId} unit missing");
         }
-
-        var suffix = FactionSpriteSuffix(faction.Id);
-        Assert(File.Exists(Path.Combine(root, "assets", "image", "units", $"army_{suffix}.png")), $"{faction.Id} army sprite placeholder missing");
-        Assert(File.Exists(Path.Combine(root, "assets", "image", "units", $"agent_{suffix}.png")), $"{faction.Id} agent sprite placeholder missing");
-        Assert(File.Exists(Path.Combine(root, "assets", "image", "locations", $"campsite_{suffix}.png")), $"{faction.Id} campsite sprite placeholder missing");
+        Assert(database.Units[faction.Id].Values.Select(unit => unit.Id).Order().SequenceEqual(["civilian", "militia", "ranged", "soldier"]), $"{faction.Id} unit ids mismatch");
+        Assert(faction.StartingPopulation == (faction.Id == "ratmen" ? 15 : 10), $"{faction.Id} starting population mismatch");
+        Assert(File.Exists(Path.Combine(root, "assets", "image", "locations", $"campsite_{faction.RaceId}.png")), $"{faction.Id} race-specific campsite sprite placeholder missing");
+    }
+    foreach (var size in new[] { "one", "few", "medium", "many" })
+    {
+        Assert(File.Exists(Path.Combine(root, "assets", "image", "units", $"squad_{size}.png")), $"squad {size} sprite missing");
+        Assert(File.Exists(Path.Combine(root, "assets", "image", "units", $"civilians_{size}.png")), $"civilian {size} sprite missing");
     }
     Assert(database.Events.ContainsKey("attack_enemy"), "attack event missing");
+}
+
+void LocationsStartWithPopulationAndSupportInventory()
+{
+    var state = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings { Civilizations = 6 });
+
+    foreach (var location in state.Cities.Values)
+    {
+        Assert(location.Kind == LocationKind.Settlement, "worldgen should only place settlement locations for now");
+        var expectedPopulation = location.FactionId == "ratmen" ? 15 : 10;
+        Assert(location.Population == expectedPopulation, $"{location.FactionId} starting population mismatch");
+        Assert(GameRules.TryAddLocationInventory(location, ResourceCategory.Materials, 10_000), "location inventory should accept large quantities");
+    }
+
+    Assert(File.Exists(Path.Combine(root, "assets", "image", "locations", "farm.png")), "farm default location sprite missing");
+    Assert(File.Exists(Path.Combine(root, "assets", "image", "locations", "camp.png")), "camp default location sprite missing");
+    Assert(File.Exists(Path.Combine(root, "assets", "image", "locations", "mine.png")), "mine default location sprite missing");
+
+    foreach (var kind in new[] { LocationKind.Farm, LocationKind.Camp, LocationKind.Mine })
+    {
+        var coord = state.Map.Tiles
+            .Where(tile => tile.LocationId is null && TerrainResolver.Resolve(state, tile).Passable)
+            .OrderBy(tile => tile.Coord.Q)
+            .ThenBy(tile => tile.Coord.R)
+            .First()
+            .Coord;
+        var id = GameRules.TryCreateLocation(state, kind, state.PlayerFaction.Id, coord, $"Test {kind}")
+            ?? throw new InvalidOperationException($"{kind} location creation failed");
+        Assert(state.Cities[id].Kind == kind, $"{kind} should be created as requested");
+        Assert(state.Map.Get(coord).LocationId == id, $"{kind} tile should reference created location");
+    }
+}
+
+void GroupCarryCapacityUsesUnitStrength()
+{
+    var state = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings
+    {
+        Civilizations = 1,
+        AllowedFactionIds = ["orcs"]
+    });
+    var group = GarrisonGroup(state, "orcs");
+    group.Units.Clear();
+    group.Units.Add(new UnitInstance { Id = 100, TypeId = "soldier" });
+    group.Units.Add(new UnitInstance { Id = 101, TypeId = "militia" });
+
+    Assert(Math.Abs(GameRules.GroupStrength(state, group) - 2.4) < 0.0001, "orc group strength should sum unit strength");
+    Assert(Math.Abs(GameRules.GroupCarryCapacity(state, group) - 12.0) < 0.0001, "carry capacity should be strength times five");
+    Assert(GameRules.TryAddGroupInventory(state, group, ResourceCategory.Supplies, 12.0), "group should accept inventory at capacity");
+    Assert(!GameRules.TryAddGroupInventory(state, group, ResourceCategory.Materials, 0.1), "group should reject inventory over capacity");
+}
+
+void CivilianRelocateAndSettleUsesPopulation()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var location = state.Cities.Values.Single(city => city.FactionId == state.PlayerFaction.Id);
+    var originalPopulation = location.Population;
+
+    var groupId = GameRules.TryRelocateCivilians(state, location.Id, 3)
+        ?? throw new InvalidOperationException("civilian relocation did not return a group");
+    var group = state.Groups[groupId];
+
+    Assert(location.Population == originalPopulation - 3, "relocation should remove civilians from location population");
+    Assert(group.Units.Count == 3, "relocation should create one unit per civilian");
+    Assert(group.Units.All(unit => GameRules.IsCivilianUnit(state, group, unit)), "relocation should create civilian units only");
+    Assert(GameRules.GroupDisplayName(state, group) == "Civilians", "civilian-only groups should use the generic display name");
+    Assert(state.Map.Get(location.Coord).GroupIds.Contains(group.Id), "relocated civilian group should be indexed on the map");
+    Assert(GameRules.TrySettleCivilians(state, group.Id), "civilian group should settle at an established friendly location");
+    Assert(location.Population == originalPopulation, "settling should return civilians to location population");
+    Assert(!state.Groups.ContainsKey(group.Id), "settling every civilian should remove the group");
+    Assert(!state.Map.Get(location.Coord).GroupIds.Contains(group.Id), "settled group should leave tile index");
 }
 
 void TerrainResolverAppliesRegionBiomeTables()
@@ -411,11 +491,8 @@ void FactionsStartOnPassableIslandTiles()
         var stack = GarrisonGroup(state, faction.Id);
         var expectedCount = database.Factions[faction.Id].StartingArmy.Values.Sum();
         Assert(stack.StationedCityId is not null, $"{faction.Id} starting group should be stationed");
-        Assert(stack.Units.Count == expectedCount + 1, $"{faction.Id} starting garrison should follow factions.json and include agent");
-        Assert(stack.Units.All(unit => unit.TypeId.StartsWith($"{faction.Id}_", StringComparison.OrdinalIgnoreCase)), $"{faction.Id} group should use faction unit ids");
-        var agent = stack.Units.Single(unit => GameRules.IsAgentUnit(state, unit));
-        Assert(agent.TypeId == $"{faction.Id}_agent", $"{faction.Id} agent unit missing");
-        Assert(agent.Name == $"{faction.Name} Agent", $"{faction.Id} agent unit should preserve name");
+        Assert(stack.Units.Count == expectedCount, $"{faction.Id} starting garrison should follow factions.json exactly");
+        Assert(stack.Units.All(unit => database.Factions[faction.Id].StartingArmy.ContainsKey(unit.TypeId)), $"{faction.Id} group should use local starting unit ids");
     }
 
     foreach (var city in state.Cities.Values)
@@ -445,52 +522,6 @@ void MovementRejectsWaterAndSpendsMovement()
     Assert(group.MovementLeft == 2 - destination.Value, "group movement should be reduced by movement cost");
 }
 
-void DeployedAgentUnitDoesNotAutoMerge()
-{
-    var state = MapGenerator.CreateSandbox(database, 42);
-    var group = DeployGarrison(state, state.PlayerFaction.Id);
-    var agentUnit = group.Units.Single(unit => GameRules.IsAgentUnit(state, unit));
-    var agentGroupId = GameRules.TrySplitGroup(state, group.Id, [agentUnit.Id])
-        ?? throw new InvalidOperationException("agent split did not return a group");
-    var agentGroup = state.Groups[agentGroupId];
-    agentGroup.MovementLeft = 10;
-
-    var neighbor = state.Map.Neighbors(group.Coord)
-        .First(tile => TerrainResolver.Resolve(state, tile).Passable && !tile.GroupIds.Contains(group.Id));
-
-    var movedAway = GameRules.TryMoveGroup(state, agentGroup.Id, neighbor.Coord);
-    Assert(movedAway, "agent group should move away from group tile");
-
-    var movedBack = GameRules.TryMoveGroup(state, agentGroup.Id, group.Coord);
-    Assert(movedBack, "agent group should move back onto group tile");
-    Assert(state.Groups.ContainsKey(agentGroup.Id), "agent group should remain independent");
-    Assert(!group.Units.Any(unit => GameRules.IsAgentUnit(state, unit)), "group should not gain agent units without explicit merge");
-    Assert(state.Map.Get(group.Coord).GroupIds.Contains(agentGroup.Id), "loose agent group should remain on tile index after returning");
-}
-
-void AgentUnitSplitsAndMergesThroughGroupRules()
-{
-    var state = MapGenerator.CreateSandbox(database, 42);
-    var group = DeployGarrison(state, state.PlayerFaction.Id);
-    var agentUnitId = group.Units.Single(unit => GameRules.IsAgentUnit(state, unit)).Id;
-    var agentGroupId = GameRules.TrySplitGroup(state, group.Id, [agentUnitId])
-        ?? throw new InvalidOperationException("agent split did not return a group");
-    var agentGroup = state.Groups[agentGroupId];
-
-    var joined = GameRules.TryMergeGroups(state, agentGroup.Id, group.Id);
-    Assert(joined, "agent group should join colocated friendly group");
-    Assert(!state.Groups.ContainsKey(agentGroup.Id), "merged agent group should be removed");
-    Assert(group.Units.Any(unit => unit.Id == agentUnitId), "target group should contain joined agent unit");
-    Assert(!state.Map.Get(group.Coord).GroupIds.Contains(agentGroup.Id), "joined agent group should leave tile group list");
-
-    var splitGroupId = GameRules.TrySplitGroup(state, group.Id, [agentUnitId]);
-    Assert(splitGroupId is not null, "agent unit should split");
-    Assert(!group.Units.Any(unit => unit.Id == agentUnitId), "source group should lose split agent unit");
-    var splitId = splitGroupId ?? throw new InvalidOperationException("split did not return a group id");
-    Assert(state.Groups[splitId].Units.Single().Id == agentUnitId, "split group should preserve agent unit identity");
-    Assert(state.Map.Get(group.Coord).GroupIds.Contains(splitId), "split agent group should return to tile group list");
-}
-
 void GroupSplitAndMergePreservesIndexes()
 {
     var state = MapGenerator.CreateSandbox(database, 42);
@@ -511,6 +542,49 @@ void GroupSplitAndMergePreservesIndexes()
     Assert(!state.Groups.ContainsKey(splitId), "merged source group should be removed");
     Assert(group.Units.Any(unit => unit.Id == splitUnit.Id), "merged target should regain split unit");
     Assert(!state.Map.Get(origin).GroupIds.Contains(splitId), "merged source group should leave tile index");
+}
+
+void CivilianSplitAndTransferPreservesCategories()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var location = state.Cities.Values.Single(city => city.FactionId == state.PlayerFaction.Id);
+    var civilianGroupId = GameRules.TryRelocateCivilians(state, location.Id, 3)
+        ?? throw new InvalidOperationException("civilian relocation did not return a group");
+    var civilianGroup = state.Groups[civilianGroupId];
+    var splitUnitId = civilianGroup.Units[0].Id;
+
+    var splitId = GameRules.TrySplitGroup(state, civilianGroup.Id, [splitUnitId])
+        ?? throw new InvalidOperationException("civilian split did not return a group");
+    var splitGroup = state.Groups[splitId];
+
+    Assert(GameRules.IsCivilianOnlyGroup(state, civilianGroup), "source should remain civilian-only after split");
+    Assert(GameRules.IsCivilianOnlyGroup(state, splitGroup), "created split group should be civilian-only");
+    Assert(state.Map.Get(location.Coord).GroupIds.Contains(civilianGroup.Id), "source civilian group should remain indexed");
+    Assert(state.Map.Get(location.Coord).GroupIds.Contains(splitGroup.Id), "split civilian group should be indexed");
+
+    var transferred = GameRules.TryTransferUnits(state, splitGroup.Id, civilianGroup.Id, [splitUnitId]);
+
+    Assert(transferred, "civilian units should transfer between civilian groups");
+    Assert(!state.Groups.ContainsKey(splitGroup.Id), "empty civilian source group should be removed after transfer");
+    Assert(civilianGroup.Units.Count == 3, "target civilian group should regain transferred unit");
+    Assert(GameRules.IsCivilianOnlyGroup(state, civilianGroup), "target should remain civilian-only after transfer");
+}
+
+void CivilianAndMilitaryTransferCannotMix()
+{
+    var state = MapGenerator.CreateSandbox(database, 42);
+    var location = state.Cities.Values.Single(city => city.FactionId == state.PlayerFaction.Id);
+    var military = DeployGarrison(state, state.PlayerFaction.Id);
+    var civilianGroupId = GameRules.TryRelocateCivilians(state, location.Id, 2)
+        ?? throw new InvalidOperationException("civilian relocation did not return a group");
+    var civilians = state.Groups[civilianGroupId];
+    var civilianUnitId = civilians.Units[0].Id;
+    var militaryUnitId = military.Units[0].Id;
+
+    Assert(!GameRules.TryTransferUnits(state, civilians.Id, military.Id, [civilianUnitId]), "civilian units should not transfer into military groups");
+    Assert(!GameRules.TryTransferUnits(state, military.Id, civilians.Id, [militaryUnitId]), "military units should not transfer into civilian groups");
+    Assert(civilians.Units.Count == 2, "failed civilian transfer should not remove units");
+    Assert(military.Units.Any(unit => unit.Id == militaryUnitId), "failed military transfer should not remove units");
 }
 
 void GroupStationAndDeployUsesCityGarrison()
@@ -570,19 +644,16 @@ void GroupRenamePersistsThroughSaveLoad()
     Assert(loaded.Groups[group.Id].Name == "First Patrol", "renamed group should persist through save/load");
 }
 
-void DefaultGroupDisplayUsesFactionAdjective()
+void DefaultGroupDisplayUsesGenericNames()
 {
     var state = MapGenerator.CreateSandbox(database, 42, new WorldGenerationSettings
     {
         Civilizations = 1,
         AllowedFactionIds = ["elves"]
     });
-    var group = GarrisonGroup(state, "elves");
-    var agentUnitId = group.Units.Single(unit => GameRules.IsAgentUnit(state, unit)).Id;
-    var agentGroupId = GameRules.TryDeployUnits(state, state.Cities.Values.Single().Id, [agentUnitId])
-        ?? throw new InvalidOperationException("agent deploy did not return a group id");
+    var group = DeployGarrison(state, "elves");
 
-    Assert(GameRules.GroupDisplayName(state, state.Groups[agentGroupId]) == "Elven", "unnamed single-agent group should use faction adjective");
+    Assert(GameRules.GroupDisplayName(state, group) == "Squad", "unnamed military groups should use the generic squad name");
 }
 
 void CityBuildingUpgradeReplacesPreviousLevel()
@@ -613,16 +684,12 @@ void CombatRemovesLosingGroup()
     var attacker = DeployGarrison(state, state.PlayerFaction.Id);
     var enemyFactionId = state.Factions.First(f => !f.IsPlayer).Id;
     var defender = DeployGarrison(state, enemyFactionId);
-    var leaderUnit = defender.Units.Single(unit => GameRules.IsAgentUnit(state, unit));
-    var leaderUnitId = leaderUnit.Id;
     defender.Units.Clear();
-    defender.Units.Add(new UnitInstance { Id = 10000, TypeId = $"{enemyFactionId}_militia" });
-    defender.Units.Add(leaderUnit);
+    defender.Units.Add(new UnitInstance { Id = 10000, TypeId = "militia" });
 
     CombatResolver.Resolve(state, attacker, defender);
     Assert(state.Groups.ContainsKey(attacker.Id), "attacker should survive favorable combat");
     Assert(!state.Groups.ContainsKey(defender.Id), "weak defender should be removed");
-    Assert(!state.Groups.Values.SelectMany(group => group.Units).Any(unit => unit.Id == leaderUnitId), "defeated group should lose agent unit with the group");
 }
 
 void DirectorProducesValidAiState()
@@ -663,7 +730,9 @@ void SaveLoadPreservesGameState()
     var state = MapGenerator.CreateSandbox(database, 42);
     state.FogOfWarEnabled = true;
     var stack = GarrisonGroup(state, state.PlayerFaction.Id);
-    var agentUnitId = stack.Units.Single(unit => GameRules.IsAgentUnit(state, unit)).Id;
+    var playerLocation = state.Cities[stack.StationedCityId!.Value];
+    playerLocation.Inventory[ResourceCategory.Supplies] = 25;
+    stack.Inventory[ResourceCategory.Armaments] = 3;
     GameRules.AdvanceTurn(state);
 
     var json = GameStateSerializer.ToJson(state);
@@ -678,8 +747,11 @@ void SaveLoadPreservesGameState()
     Assert(loaded.WorldGeneration.ConiferBroadleafForestBias == state.WorldGeneration.ConiferBroadleafForestBias, "loaded state should retain conifer/broadleaf bias");
     Assert(loaded.Map.Tiles.Where(t => t.Elevation == Elevation.Coast).All(t => t.WaterBodyKind != WaterBodyKind.None), "loaded coast tiles should retain water-body classification");
     Assert(loaded.Cities[stack.StationedCityId!.Value].StationedGroupIds.Contains(stack.Id), "loaded city should retain garrison group index");
+    Assert(loaded.Cities[playerLocation.Id].Population == playerLocation.Population, "loaded location should retain population");
+    Assert(loaded.Cities[playerLocation.Id].Inventory[ResourceCategory.Supplies] == 25, "loaded location should retain inventory");
+    Assert(loaded.Groups[stack.Id].Inventory[ResourceCategory.Armaments] == 3, "loaded group should retain inventory");
     Assert(!loaded.Map.Get(stack.Coord).GroupIds.Contains(stack.Id), "loaded garrison should not appear on map tile index");
-    Assert(loaded.Groups[stack.Id].Units.Any(unit => unit.Id == agentUnitId), "loaded garrison should retain agent unit");
+    Assert(loaded.Groups[stack.Id].Units.Count == stack.Units.Count, "loaded garrison should retain unit count");
 }
 
 void FogVisibilityRulesGatePlayerVision()
@@ -771,10 +843,10 @@ void CombatAppliesCasualtiesToWinner()
     attacker.Units.Clear();
     for (var i = 0; i < 20; i++)
     {
-        attacker.Units.Add(new UnitInstance { Id = 20000 + i, TypeId = "humans_soldier" });
+        attacker.Units.Add(new UnitInstance { Id = 20000 + i, TypeId = "soldier" });
     }
     defender.Units.Clear();
-    defender.Units.Add(new UnitInstance { Id = 30000, TypeId = $"{enemyFactionId}_militia" });
+    defender.Units.Add(new UnitInstance { Id = 30000, TypeId = "militia" });
 
     var countBefore = attacker.Units.Count;
     CombatResolver.Resolve(state, attacker, defender);
@@ -939,20 +1011,6 @@ bool IsAllowedLandTerrain(string name)
         or "Desert"
         or "Badlands"
         or "Jungle";
-}
-
-string FactionSpriteSuffix(string factionId)
-{
-    return factionId switch
-    {
-        "humans" => "human",
-        "orcs" => "orc",
-        "undead" => "undead",
-        "ratmen" => "ratman",
-        "elves" => "elf",
-        "dwarves" => "dwarf",
-        _ => factionId
-    };
 }
 
 bool DesertRegionsAreBroad(GameState state)

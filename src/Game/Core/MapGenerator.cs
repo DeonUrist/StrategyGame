@@ -35,6 +35,7 @@ public static partial class MapGenerator
                 Id = faction.Id,
                 Type = faction.Type,
                 Name = faction.Name,
+                RaceId = faction.RaceId,
                 Color = faction.Color,
                 Description = faction.Description,
                 IsPlayer = isPlayer

@@ -263,7 +263,7 @@ public partial class MainGame
         }
     }
 
-    private Node CreateSettlementLabel(GameState state, CityState city, Vector2 position)
+    private Node CreateSettlementLabel(GameState state, LocationState city, Vector2 position)
     {
         var labelText = SettlementProgression.DisplayName(state, city);
         var faction = _factionById.TryGetValue(city.FactionId, out var foundFaction)
@@ -613,35 +613,33 @@ public partial class MainGame
         return value.Trim().ToLowerInvariant().Replace(" ", "_").Replace("-", "_");
     }
 
-    private static string LocationSpritePath(GameState state, CityState city, BuildingLevelDefinition townCenter)
+    private static string LocationSpritePath(GameState state, LocationState location, BuildingLevelDefinition townCenter)
     {
-        var key = NormalizeAssetKey(townCenter.Sprite);
-        var factionPath = $"res://assets/image/locations/{key}_{FactionSpriteSuffix(city.FactionId)}.png";
-        return ResourceLoader.Exists(factionPath) ? factionPath : $"res://assets/image/locations/{key}.png";
+        var key = location.Kind == LocationKind.Settlement
+            ? NormalizeAssetKey(townCenter.Sprite)
+            : NormalizeAssetKey(location.Kind.ToString());
+        var raceId = NormalizeAssetKey(state.GetFaction(location.FactionId).RaceId);
+        var racePath = $"res://assets/image/locations/{key}_{raceId}.png";
+        return ResourceLoader.Exists(racePath) ? racePath : $"res://assets/image/locations/{key}.png";
     }
 
     private static string GroupSpritePath(GameState state, GroupState group)
     {
-        if (GameRules.IsSingleAgentGroup(state, group))
-        {
-            var key = NormalizeAssetKey(state.Database.Units[group.Units[0].TypeId].Sprite);
-            return $"res://assets/image/units/{key}.png";
-        }
-
-        return $"res://assets/image/units/army_{FactionSpriteSuffix(group.FactionId)}.png";
+        var groupType = GameRules.IsCivilianOnlyGroup(state, group) ? "civilians" : "squad";
+        var size = GroupSizeSpriteKey(group.Units.Count);
+        var raceId = NormalizeAssetKey(state.GetFaction(group.FactionId).RaceId);
+        var racePath = $"res://assets/image/units/{groupType}_{size}_{raceId}.png";
+        return ResourceLoader.Exists(racePath) ? racePath : $"res://assets/image/units/{groupType}_{size}.png";
     }
 
-    private static string FactionSpriteSuffix(string factionId)
+    private static string GroupSizeSpriteKey(int unitCount)
     {
-        return NormalizeAssetKey(factionId) switch
+        return unitCount switch
         {
-            "humans" => "human",
-            "orcs" => "orc",
-            "undead" => "undead",
-            "ratmen" => "ratman",
-            "elves" => "elf",
-            "dwarves" => "dwarf",
-            var normalized => normalized
+            <= 1 => "one",
+            <= 10 => "few",
+            <= 25 => "medium",
+            _ => "many"
         };
     }
 
